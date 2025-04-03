@@ -1,0 +1,10 @@
+@echo off
+echo Installing required packages...
+python -m pip install django==5.0.2 python-dotenv==1.0.1 requests==2.31.0 django-leaflet==0.29.0 django-environ==0.11.2 gunicorn==21.2.0 whitenoise==6.6.0
+
+echo.
+echo Starting Django server...
+set DJANGO_SETTINGS_MODULE=wildfire_prediction.settings
+python run_django.py
+
+pause 

@@ -35,8 +35,10 @@ env/
 venv/
 ENV/
 env_new/
-myenv/
 venv_new/
+myenv/
+env_fresh/
+*env*/
 
 # IDE
 .idea/

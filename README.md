@@ -1,85 +1,144 @@
-# Wildfire Risk Monitoring & Historical Data Dashboard for Morocco
+# Wildfire Risk Monitoring for Morocco
 
-A web application designed to display key environmental factors contributing to wildfire risk and visualize historical wildfire data across different regions of Morocco.
+A Django-based web application for monitoring wildfire risks and historical data across Morocco.
 
 ## Features
 
-- Real-time weather data display (temperature, humidity, wind speed)
-- Interactive map visualization using Leaflet.js
-- Region selection functionality
-- Historical wildfire data display (where available)
-- Basic risk indicators based on current weather conditions
+- Real-time weather data monitoring using OpenWeatherMap API
+- Historical wildfire data visualization
+- Interactive mapping of wildfire risk areas
+- Responsive design for all devices
 
-## Project Structure
+## Prerequisites
 
-```
-wildfire_prediction/
-├── core/               # Base templates and main dashboard
-├── weather/           # Weather API integration
-├── mapping/          # Map display and region definitions
-└── historical_data/  # Historical fire data management
-```
+- Python 3.8 or higher
+- pip (Python package manager)
+- Git
 
-## Setup
+## Installation
 
-1. Clone the repository:
+1. **Clone the repository**
 
-```bash
-git clone [your-repository-url]
-cd wildfire_prediction
-```
+   ```bash
+   git clone <repository-url>
+   cd wildfire_prediction
+   ```
 
-2. Create and activate a virtual environment:
+2. **Create and activate a virtual environment**
 
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
+   For Windows:
 
-3. Install dependencies:
+   ```bash
+   python -m venv venv
+   .\venv\Scripts\Activate.ps1  # For PowerShell
+   # OR
+   .\venv\Scripts\activate.bat  # For Command Prompt
+   ```
 
-```bash
-pip install -r requirements.txt
-```
+   For macOS/Linux:
 
-4. Set up environment variables:
-   Create a `.env` file in the root directory with:
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
 
-```
-DEBUG=True
-SECRET_KEY=your-secret-key
-OPENWEATHER_API_KEY=your-api-key
-```
+3. **Install dependencies**
 
-5. Run migrations:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-```bash
-python manage.py migrate
-```
+4. **Set up environment variables**
 
-6. Start the development server:
+   Copy the example environment file and update with your values:
+
+   ```bash
+   cp .env-example .env
+   ```
+
+   Then edit the `.env` file with your actual values, particularly:
+
+   - `SECRET_KEY`: Your Django secret key
+   - `OPENWEATHER_API_KEY`: Your OpenWeatherMap API key
+
+5. **Run database migrations**
+
+   ```bash
+   python manage.py migrate
+   ```
+
+6. **Create a superuser (admin)**
+
+   ```bash
+   python manage.py createsuperuser
+   ```
+
+7. **Collect static files**
+
+   ```bash
+   python manage.py collectstatic
+   ```
+
+## Running the Application
+
+### Development Server
 
 ```bash
 python manage.py runserver
 ```
 
-## API Endpoints
+The application will be available at http://127.0.0.1:8000/
 
-- `/`: Main dashboard
-- `/api/weather/{region_id}/`: Current weather data
-- `/api/regions/`: Map regions data
-- `/historical/`: Historical fire data display
-- `/api/historical-fires/`: Historical fire data API
+### Accessing the Admin Panel
 
-## Data Sources
+Visit http://127.0.0.1:8000/admin/ and login with the superuser credentials you created.
 
-- Weather Data: OpenWeatherMap API
-- Historical Data: Various sources (documented in the application)
+## Troubleshooting
 
-## Contributing
+### Virtual Environment Issues
 
-This is a capstone project. For any questions or suggestions, please open an issue.
+If you have problems with the virtual environment:
+
+1. Make sure PowerShell execution policy allows running scripts (Windows):
+
+   ```bash
+   Set-ExecutionPolicy RemoteSigned -Scope Process
+   ```
+
+2. If packages are being installed in the user location instead of the virtual environment:
+   ```bash
+   python -m pip install --force-reinstall -r requirements.txt
+   ```
+
+### Module Not Found Errors
+
+If Django or other modules are not found:
+
+1. Ensure you've activated the virtual environment
+2. Try reinstalling the package directly:
+   ```bash
+   pip install django==5.0.2
+   ```
+
+## Deployment
+
+For production deployment:
+
+1. Set `DEBUG=False` in your `.env` file
+2. Configure proper `ALLOWED_HOSTS` in your `.env` file
+3. Enable all security settings in `.env`:
+
+   ```
+   SECURE_SSL_REDIRECT=True
+   SESSION_COOKIE_SECURE=True
+   CSRF_COOKIE_SECURE=True
+   ```
+
+4. Use a production-ready server like Gunicorn:
+   ```bash
+   gunicorn wildfire_prediction.wsgi:application
+   ```
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+[MIT License](LICENSE)

@@ -30,9 +30,20 @@ SECRET_KEY = os.getenv(
 )
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv("DEBUG", "True") == "True"
+DEBUG = os.getenv("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = ["*"]  # TODO: Configure this properly for production
+ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+
+# Security Settings
+SECURE_SSL_REDIRECT = not DEBUG
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = "DENY"
+SECURE_HSTS_SECONDS = 31536000  # 1 year
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
 
 
 # Application definition
@@ -145,3 +156,6 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # OpenWeatherMap API settings
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY", "")
+
+# Remove hardcoded API key
+# OPENWEATHERMAP_API_KEY = "f0b7e4d68b1aa1caeeaf01fb6640e705"

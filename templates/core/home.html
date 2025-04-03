@@ -1,0 +1,47 @@
+{% extends 'base.html' %} {% block title %}Home - Wildfire Risk Monitoring{%
+endblock %} {% block content %}
+<div class="row">
+  <div class="col-md-12">
+    <h1 class="mb-4">Welcome to Wildfire Risk Monitoring</h1>
+    <p class="lead">
+      Monitor wildfire risks and historical data across Morocco.
+    </p>
+  </div>
+</div>
+
+<div class="row mt-4">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Current Weather</h5>
+        <p class="card-text">
+          View real-time weather conditions and risk assessments for different
+          regions.
+        </p>
+        <a href="{% url 'weather:index' %}" class="btn btn-primary"
+          >View Weather Data</a
+        >
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Historical Data</h5>
+        <p class="card-text">
+          Explore historical wildfire data and patterns across Morocco.
+        </p>
+        <a href="{% url 'historical_data:index' %}" class="btn btn-primary"
+          >View Historical Data</a
+        >
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row mt-4">
+  <div class="col-md-12">
+    <div id="map" class="map-container"></div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends 'base.html' %} {% block title %}Weather Data - Wildfire Risk
+Monitoring{% endblock %} {% block content %}
+<div class="row">
+  <div class="col-md-12">
+    <h1 class="mb-4">Weather Data</h1>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-4">
+    <div class="region-select">
+      <label for="region" class="form-label">Select Region</label>
+      <select class="form-select" id="region">
+        <option value="">Choose a region...</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<div class="row mt-4">
+  <div class="col-md-12">
+    <div class="risk-indicator">Select a region to view risk assessment</div>
+  </div>
+</div>
+
+<div class="row mt-4">
+  <div class="col-md-6">
+    <div class="weather-card">
+      <h3>Current Conditions</h3>
+      <div id="weather-data">Select a region to view weather data</div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div id="map" class="map-container"></div>
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    // Load regions
+    fetch("/api/regions/")
+      .then((response) => response.json())
+      .then((data) => {
+        const select = document.getElementById("region");
+        data.regions.forEach((region) => {
+          const option = document.createElement("option");
+          option.value = region.id;
+          option.textContent = region.name;
+          select.appendChild(option);
+        });
+      })
+      .catch((error) => console.error("Error loading regions:", error));
+  });
+</script>
+{% endblock %}

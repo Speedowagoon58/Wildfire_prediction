@@ -1,0 +1,55 @@
+{% extends 'base.html' %} {% block title %}Historical Data - Wildfire Risk
+Monitoring{% endblock %} {% block content %}
+<div class="row">
+  <div class="col-md-12">
+    <h1 class="mb-4">Historical Wildfire Data</h1>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-8">
+    <div class="table-responsive">
+      <table class="table table-striped historical-table">
+        <thead>
+          <tr>
+            <th>Location</th>
+            <th>Date</th>
+            <th>Area Affected</th>
+          </tr>
+        </thead>
+        <tbody id="historical-data">
+          <tr>
+            <td colspan="3" class="text-center">Loading data...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div id="map" class="map-container"></div>
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    // Load historical data
+    fetch("/api/historical-fires/")
+      .then((response) => response.json())
+      .then((data) => {
+        const tbody = document.getElementById("historical-data");
+        tbody.innerHTML = "";
+
+        data.fires.forEach((fire) => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+                    <td>${fire.location}</td>
+                    <td>${fire.date}</td>
+                    <td>${fire.area_affected}</td>
+                `;
+          tbody.appendChild(row);
+        });
+      })
+      .catch((error) => console.error("Error loading historical data:", error));
+  });
+</script>
+{% endblock %}

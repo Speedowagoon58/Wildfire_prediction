@@ -15,6 +15,10 @@ Dashboard{% endblock %} {% block extra_css %}
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     position: relative;
     z-index: 1;
+    cursor: grab;
+  }
+  #map:active {
+    cursor: grabbing;
   }
   .risk-legend {
     background: white;
@@ -61,27 +65,6 @@ Dashboard{% endblock %} {% block extra_css %}
   <div class="alert alert-danger" role="alert">{{ error_message }}</div>
   {% endif %}
 
-  <!-- Risk Level Legend -->
-  <div class="card mb-4">
-    <div class="card-body">
-      <h5 class="card-title">Risk Level Legend</h5>
-      <div class="d-flex gap-3">
-        <div class="risk-level">
-          <span class="badge bg-danger">High Risk</span>
-          <small class="text-muted d-block">Immediate action required</small>
-        </div>
-        <div class="risk-level">
-          <span class="badge bg-warning">Medium Risk</span>
-          <small class="text-muted d-block">Monitor conditions</small>
-        </div>
-        <div class="risk-level">
-          <span class="badge bg-success">Low Risk</span>
-          <small class="text-muted d-block">Normal conditions</small>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- Interactive Map -->
   <div class="card mb-4">
     <div class="card-body">
@@ -104,7 +87,13 @@ Dashboard{% endblock %} {% block extra_css %}
     <div class="col-md-6 mb-4">
       <div class="card h-100">
         <div class="card-header">
-          <h5 class="mb-0">{{ prediction.region }}</h5>
+          <h5 class="mb-0">
+            {{ prediction.region }} {% if prediction.major_forests %}
+            <small class="text-muted d-block"
+              >{{ prediction.major_forests|join:", " }}</small
+            >
+            {% endif %}
+          </h5>
         </div>
         <div class="card-body">
           <div class="mb-3">
@@ -142,10 +131,17 @@ Dashboard{% endblock %} {% block extra_css %}
 ></script>
 <script>
   document.addEventListener('DOMContentLoaded', function() {
-      // Initialize the map
+      // Initialize the map with explicit dragging enabled
       var map = L.map('map', {
           center: [0, 0],
-          zoom: 2
+          zoom: 2,
+          dragging: true,
+          tap: true,
+          tapTolerance: 15,
+          dragging: true,
+          touchZoom: true,
+          doubleClickZoom: true,
+          keyboard: true
       });
 
       // Add the tile layer
@@ -170,16 +166,22 @@ Dashboard{% endblock %} {% block extra_css %}
               fillColor: riskColors['{{ prediction.risk_level }}'],
               fillOpacity: 0.5,
               radius: 50000,
-              weight: 2
-          }).addTo(map);
+              weight: 2,
+              interactive: true,
+              bubblingMouseEvents: true
+          });
+
+          // Add to feature group instead of directly to map
+          markers.addLayer(region);
 
           region.bindPopup(`
               <strong>{{ prediction.region }}</strong><br>
+              {% if prediction.major_forests %}
+              <small class="text-muted">{{ prediction.major_forests|join:", " }}</small><br>
+              {% endif %}
               Risk Level: {{ prediction.risk_level }}<br>
               {{ prediction.explanation }}
           `);
-
-          markers.addLayer(region);
       {% endfor %}
 
       // Add markers to the map
@@ -196,6 +198,9 @@ Dashboard{% endblock %} {% block extra_css %}
       setTimeout(function() {
           map.invalidateSize();
       }, 100);
+
+      // Ensure dragging is enabled
+      map.dragging.enable();
   });
 </script>
 {% endblock %}

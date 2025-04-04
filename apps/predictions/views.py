@@ -68,17 +68,36 @@ def calculate_trend(data_points, window_size=7):
         # Calculate basic seasonality (correlation with shifted series)
         if len(data) > window_size:
             shifted = np.roll(data, window_size)
-            seasonality, _ = np.corrcoef(data[window_size:], shifted[window_size:])
-            seasonality = seasonality[0, 1]
+            # Ensure we're working with 1D arrays
+            data_slice = data[window_size:]
+            shifted_slice = shifted[window_size:]
+
+            # Calculate correlation coefficient safely
+            if len(data_slice) > 1 and len(shifted_slice) > 1:
+                try:
+                    # Reshape arrays to 2D for correlation
+                    data_2d = data_slice.reshape(-1, 1)
+                    shifted_2d = shifted_slice.reshape(-1, 1)
+                    corr_matrix = np.corrcoef(data_2d.T, shifted_2d.T)
+                    seasonality = (
+                        float(corr_matrix[0, 1]) if corr_matrix.shape == (2, 2) else 0
+                    )
+                except Exception as e:
+                    logger.error(f"Error calculating correlation: {str(e)}")
+                    seasonality = 0
+            else:
+                seasonality = 0
         else:
             seasonality = 0
 
         return {
-            "linear_trend": slope,
-            "r_squared": r_value**2,
-            "moving_average": moving_avg.tolist() if len(moving_avg) > 0 else [],
-            "volatility": volatility,
-            "seasonality": seasonality,
+            "linear_trend": float(slope),
+            "r_squared": float(r_value**2),
+            "moving_average": (
+                [float(x) for x in moving_avg.tolist()] if len(moving_avg) > 0 else []
+            ),
+            "volatility": float(volatility),
+            "seasonality": float(seasonality),
         }
 
     except Exception as e:
@@ -271,7 +290,7 @@ def calculate_wildfire_risk(weather_data, historical_data=None):
         }
 
         # Calculate temperature risk
-        temp = getattr(weather_data, "temperature", 0)
+        temp = float(getattr(weather_data, "temperature", 0))
         if temp > 30:
             risk_factors["temperature_risk"] = 1.0
         elif temp > 25:
@@ -284,7 +303,7 @@ def calculate_wildfire_risk(weather_data, historical_data=None):
             risk_factors["temperature_risk"] = 0.2
 
         # Calculate humidity risk
-        humidity = getattr(weather_data, "humidity", 0)
+        humidity = float(getattr(weather_data, "humidity", 0))
         if humidity < 30:
             risk_factors["humidity_risk"] = 1.0
         elif humidity < 40:
@@ -297,7 +316,7 @@ def calculate_wildfire_risk(weather_data, historical_data=None):
             risk_factors["humidity_risk"] = 0.2
 
         # Calculate wind risk
-        wind_speed = getattr(weather_data, "wind_speed", 0)
+        wind_speed = float(getattr(weather_data, "wind_speed", 0))
         if wind_speed > 30:
             risk_factors["wind_risk"] = 1.0
         elif wind_speed > 20:
@@ -310,7 +329,7 @@ def calculate_wildfire_risk(weather_data, historical_data=None):
             risk_factors["wind_risk"] = 0.2
 
         # Calculate precipitation risk
-        precipitation = getattr(weather_data, "precipitation", 0)
+        precipitation = float(getattr(weather_data, "precipitation", 0))
         if precipitation < 5:
             risk_factors["precipitation_risk"] = 1.0
         elif precipitation < 10:
@@ -324,12 +343,14 @@ def calculate_wildfire_risk(weather_data, historical_data=None):
 
         # Calculate historical risk if data is available
         if historical_data:
-            risk_factors["historical_risk"] = calculate_historical_risk(historical_data)
+            risk_factors["historical_risk"] = float(
+                calculate_historical_risk(historical_data)
+            )
         else:
             risk_factors["historical_risk"] = 0.5  # Default moderate risk
 
         # Calculate environmental risk (combining all factors)
-        risk_factors["environmental_risk"] = (
+        risk_factors["environmental_risk"] = float(
             risk_factors["temperature_risk"] * 0.3
             + risk_factors["humidity_risk"] * 0.2
             + risk_factors["wind_risk"] * 0.2
@@ -345,10 +366,24 @@ def calculate_wildfire_risk(weather_data, historical_data=None):
         else:
             risk_level = WildfirePrediction.LOW_RISK
 
+        # Ensure all values are JSON serializable
+        features_used = {
+            "current_weather": {
+                "temperature": float(temp),
+                "humidity": float(humidity),
+                "wind_speed": float(wind_speed),
+                "precipitation": float(precipitation),
+            },
+            "risk_factors": {k: float(v) for k, v in risk_factors.items()},
+        }
+
+        # Validate JSON serialization
+        json.dumps(features_used)  # This will raise an error if not JSON serializable
+
         return {
             "risk_level": risk_level,
             "confidence": min(100, int(risk_factors["environmental_risk"] * 100)),
-            "features_used": risk_factors,
+            "features_used": features_used,
         }
 
     except Exception as e:
@@ -357,12 +392,20 @@ def calculate_wildfire_risk(weather_data, historical_data=None):
             "risk_level": WildfirePrediction.LOW_RISK,
             "confidence": 50,
             "features_used": {
-                "temperature_risk": 0.2,
-                "humidity_risk": 0.2,
-                "wind_risk": 0.2,
-                "precipitation_risk": 0.2,
-                "historical_risk": 0.5,
-                "environmental_risk": 0.2,
+                "current_weather": {
+                    "temperature": 0.0,
+                    "humidity": 0.0,
+                    "wind_speed": 0.0,
+                    "precipitation": 0.0,
+                },
+                "risk_factors": {
+                    "temperature_risk": 0.2,
+                    "humidity_risk": 0.2,
+                    "wind_risk": 0.2,
+                    "precipitation_risk": 0.2,
+                    "historical_risk": 0.5,
+                    "environmental_risk": 0.2,
+                },
             },
         }
 
@@ -726,7 +769,7 @@ class PredictionViewSet(viewsets.ModelViewSet):
                         prediction_date=timezone.now(),
                         risk_level=risk_prediction["risk_level"].lower(),
                         confidence=risk_prediction["confidence"],
-                        features_used=json.dumps(risk_prediction["features_used"]),
+                        features_used=risk_prediction["features_used"],
                         model_version="1.0",
                     )
 
@@ -861,37 +904,13 @@ def dashboard(request):
                 )
                 continue
 
-            # Create a new prediction record
+            # Create prediction record
             prediction = WildfirePrediction.objects.create(
                 region=region,
                 prediction_date=timezone.now(),
                 risk_level=risk_prediction["risk_level"].lower(),
                 confidence=risk_prediction["confidence"],
-                features_used={
-                    "current_weather": {
-                        "temperature": (
-                            current_weather.temperature
-                            if hasattr(current_weather, "temperature")
-                            else current_weather["temperature"]
-                        ),
-                        "humidity": (
-                            current_weather.humidity
-                            if hasattr(current_weather, "humidity")
-                            else current_weather["humidity"]
-                        ),
-                        "wind_speed": (
-                            current_weather.wind_speed
-                            if hasattr(current_weather, "wind_speed")
-                            else current_weather["wind_speed"]
-                        ),
-                        "precipitation": (
-                            current_weather.precipitation
-                            if hasattr(current_weather, "precipitation")
-                            else current_weather["precipitation"]
-                        ),
-                    },
-                    "historical_patterns": historical_patterns,
-                },
+                features_used=risk_prediction["features_used"],
                 model_version="1.0",
             )
 
@@ -905,19 +924,7 @@ def dashboard(request):
                     "region": region,
                     "prediction": prediction,
                     "risk_level": prediction.get_risk_level_display(),
-                    "risk_color": (
-                        "success"
-                        if prediction.risk_level == WildfirePrediction.LOW_RISK
-                        else (
-                            "warning"
-                            if prediction.risk_level == WildfirePrediction.MEDIUM_RISK
-                            else (
-                                "danger"
-                                if prediction.risk_level == WildfirePrediction.HIGH_RISK
-                                else "dark"
-                            )
-                        )
-                    ),
+                    "risk_color": get_risk_color(prediction.risk_level),
                     "confidence": f"{prediction.confidence:.1%}",
                     "timestamp": prediction.prediction_date.strftime("%Y-%m-%d %H:%M"),
                     "explanation": generate_prediction_explanation(prediction),

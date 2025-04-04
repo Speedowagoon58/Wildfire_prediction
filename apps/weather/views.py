@@ -15,50 +15,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def calculate_wildfire_risk(temperature, humidity, wind_speed, precipitation):
-    """Calculate wildfire risk based on weather conditions"""
-    risk_score = 0
-
-    # Temperature contribution (higher temp = higher risk)
-    if temperature > 30:
-        risk_score += 3
-    elif temperature > 25:
-        risk_score += 2
-    elif temperature > 20:
-        risk_score += 1
-
-    # Humidity contribution (lower humidity = higher risk)
-    if humidity < 30:
-        risk_score += 3
-    elif humidity < 50:
-        risk_score += 2
-    elif humidity < 70:
-        risk_score += 1
-
-    # Wind speed contribution (higher wind = higher risk)
-    if wind_speed > 20:
-        risk_score += 3
-    elif wind_speed > 15:
-        risk_score += 2
-    elif wind_speed > 10:
-        risk_score += 1
-
-    # Precipitation contribution (no rain = higher risk)
-    if precipitation == 0:
-        risk_score += 2
-
-    # Normalize risk score to 0-100
-    risk_score = (risk_score / 11) * 100
-
-    # Determine risk level and color
-    if risk_score >= 70:
-        return "High", "red"
-    elif risk_score >= 40:
-        return "Medium", "orange"
-    else:
-        return "Low", "green"
-
-
 class WeatherViewSet(viewsets.ModelViewSet):
     queryset = WeatherData.objects.all()
     serializer_class = WeatherDataSerializer
@@ -178,33 +134,3 @@ class WeatherViewSet(viewsets.ModelViewSet):
             return Response(
                 {"error": f"Error fetching historical data: {str(e)}"}, status=500
             )
-
-
-def dashboard(request):
-    regions = Region.objects.all()
-    weather_data = []
-
-    for region in regions:
-        # Get latest weather data for the region
-        latest_weather = (
-            WeatherData.objects.filter(region=region).order_by("-timestamp").first()
-        )
-
-        if latest_weather:
-            risk_level, risk_color = calculate_wildfire_risk(
-                latest_weather.temperature,
-                latest_weather.humidity,
-                latest_weather.wind_speed,
-                latest_weather.precipitation,
-            )
-
-            weather_data.append(
-                {
-                    "region": region,
-                    "weather": latest_weather,
-                    "risk_level": risk_level,
-                    "risk_color": risk_color,
-                }
-            )
-
-    return render(request, "weather/dashboard.html", {"weather_data": weather_data})

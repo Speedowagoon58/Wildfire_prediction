@@ -23,6 +23,8 @@ from .global_risk_factors import (
     calculate_vegetation_risk_factor,
     calculate_climate_risk_multiplier,
 )
+from apps.core.serializers import RegionSerializer
+from .utils import analyze_historical_patterns, get_risk_color
 
 logger = logging.getLogger(__name__)
 
@@ -289,56 +291,56 @@ def calculate_wildfire_risk(weather_data, historical_data=None):
             "environmental_risk": 0,
         }
 
-        # Calculate temperature risk
+        # Calculate temperature risk (adjusted for Moroccan climate)
         temp = float(getattr(weather_data, "temperature", 0))
-        if temp > 40:  # Extreme heat for Morocco
+        if temp > 35:  # Very hot
             risk_factors["temperature_risk"] = 1.0
-        elif temp > 35:
+        elif temp > 30:  # Hot
             risk_factors["temperature_risk"] = 0.8
-        elif temp > 30:
+        elif temp > 25:  # Warm
             risk_factors["temperature_risk"] = 0.6
-        elif temp > 25:
+        elif temp > 20:  # Mild
             risk_factors["temperature_risk"] = 0.4
-        else:
+        else:  # Cool
             risk_factors["temperature_risk"] = 0.2
 
-        # Calculate humidity risk (adjusted for Mediterranean climate)
+        # Calculate humidity risk
         humidity = float(getattr(weather_data, "humidity", 0))
-        if humidity < 15:  # Extremely dry
+        if humidity < 20:  # Very dry
             risk_factors["humidity_risk"] = 1.0
-        elif humidity < 25:
+        elif humidity < 30:  # Dry
             risk_factors["humidity_risk"] = 0.8
-        elif humidity < 35:
+        elif humidity < 40:  # Moderate
             risk_factors["humidity_risk"] = 0.6
-        elif humidity < 45:
+        elif humidity < 50:  # Humid
             risk_factors["humidity_risk"] = 0.4
-        else:
+        else:  # Very humid
             risk_factors["humidity_risk"] = 0.2
 
-        # Calculate wind risk (adjusted for mountainous regions)
+        # Calculate wind risk
         wind_speed = float(getattr(weather_data, "wind_speed", 0))
-        if wind_speed > 50:  # Very strong winds
+        if wind_speed > 40:  # Very strong winds
             risk_factors["wind_risk"] = 1.0
-        elif wind_speed > 40:
+        elif wind_speed > 30:  # Strong winds
             risk_factors["wind_risk"] = 0.8
-        elif wind_speed > 30:
+        elif wind_speed > 20:  # Moderate winds
             risk_factors["wind_risk"] = 0.6
-        elif wind_speed > 20:
+        elif wind_speed > 10:  # Light winds
             risk_factors["wind_risk"] = 0.4
-        else:
+        else:  # Very light winds
             risk_factors["wind_risk"] = 0.2
 
-        # Calculate precipitation risk (adjusted for arid climate)
+        # Calculate precipitation risk
         precipitation = float(getattr(weather_data, "precipitation", 0))
-        if precipitation == 0 and temp > 35:  # No rain during high temperatures
+        if precipitation == 0 and temp > 30:  # No rain and hot
             risk_factors["precipitation_risk"] = 1.0
-        elif precipitation == 0:  # No rain but moderate temperature
+        elif precipitation == 0:  # No rain but cooler
             risk_factors["precipitation_risk"] = 0.8
-        elif precipitation < 2:
+        elif precipitation < 2:  # Very light rain
             risk_factors["precipitation_risk"] = 0.6
-        elif precipitation < 5:
+        elif precipitation < 5:  # Light rain
             risk_factors["precipitation_risk"] = 0.4
-        else:
+        else:  # Significant rain
             risk_factors["precipitation_risk"] = 0.2
 
         # Calculate historical risk if data is available
@@ -351,25 +353,24 @@ def calculate_wildfire_risk(weather_data, historical_data=None):
 
         # Calculate environmental risk with adjusted weights
         risk_factors["environmental_risk"] = float(
-            risk_factors["temperature_risk"] * 0.3  # Temperature is critical
-            + risk_factors["humidity_risk"] * 0.25  # Humidity is very important
-            + risk_factors["wind_risk"] * 0.15  # Wind is less critical
+            risk_factors["temperature_risk"] * 0.25  # Temperature is important
+            + risk_factors["humidity_risk"] * 0.25  # Humidity is equally important
+            + risk_factors["wind_risk"] * 0.2  # Wind has significant impact
             + risk_factors["precipitation_risk"] * 0.2  # Precipitation is important
             + risk_factors["historical_risk"]
             * 0.1  # Historical patterns have some influence
         )
 
-        # More conservative thresholds for risk levels
-        if (
-            risk_factors["environmental_risk"] >= 0.9
-        ):  # Requires multiple extreme conditions
+        # Determine risk level based on environmental risk score
+        if risk_factors["environmental_risk"] >= 0.7:  # High risk threshold
             risk_level = WildfirePrediction.HIGH_RISK
-        elif (
-            risk_factors["environmental_risk"] >= 0.7
-        ):  # Requires several high-risk factors
+        elif risk_factors["environmental_risk"] >= 0.5:  # Medium risk threshold
             risk_level = WildfirePrediction.MEDIUM_RISK
         else:
             risk_level = WildfirePrediction.LOW_RISK
+
+        # Calculate confidence based on the strength of the risk factors
+        confidence = min(100, max(50, int(risk_factors["environmental_risk"] * 100)))
 
         # Ensure all values are JSON serializable
         features_used = {
@@ -382,37 +383,15 @@ def calculate_wildfire_risk(weather_data, historical_data=None):
             "risk_factors": {k: float(v) for k, v in risk_factors.items()},
         }
 
-        # Validate JSON serialization
-        json.dumps(features_used)  # This will raise an error if not JSON serializable
-
         return {
             "risk_level": risk_level,
-            "confidence": min(100, int(risk_factors["environmental_risk"] * 100)),
+            "confidence": confidence,
             "features_used": features_used,
         }
 
     except Exception as e:
         logger.error(f"Error calculating wildfire risk: {str(e)}")
-        return {
-            "risk_level": WildfirePrediction.LOW_RISK,
-            "confidence": 50,
-            "features_used": {
-                "current_weather": {
-                    "temperature": 0.0,
-                    "humidity": 0.0,
-                    "wind_speed": 0.0,
-                    "precipitation": 0.0,
-                },
-                "risk_factors": {
-                    "temperature_risk": 0.2,
-                    "humidity_risk": 0.2,
-                    "wind_risk": 0.2,
-                    "precipitation_risk": 0.2,
-                    "historical_risk": 0.5,
-                    "environmental_risk": 0.2,
-                },
-            },
-        }
+        return None
 
 
 def get_risk_color(risk_level):
@@ -431,16 +410,21 @@ def calculate_historical_risk(historical_data):
         if not historical_data:
             return 0.5  # Default moderate risk if no historical data
 
-        # Extract trend metrics from historical data
-        trend_metrics = historical_data.get("trend_metrics", {})
-        if not trend_metrics:
+        # Extract temperature data from historical data
+        temperature_data = historical_data.get("temperature", {})
+        if not temperature_data:
+            return 0.5
+
+        # Get trend data
+        temp_trends = temperature_data.get("trends", {})
+        if not temp_trends:
             return 0.5
 
         # Calculate risk based on trend metrics
-        linear_trend = trend_metrics.get("linear_trend", 0)
-        r_squared = trend_metrics.get("r_squared", 0)
-        volatility = trend_metrics.get("volatility", 0)
-        seasonality = trend_metrics.get("seasonality", 0)
+        linear_trend = temp_trends.get("linear_trend", 0)
+        r_squared = temp_trends.get("r_squared", 0)
+        volatility = temp_trends.get("volatility", 0)
+        seasonality = temp_trends.get("seasonality", 0)
 
         # Weight the different trend factors
         trend_score = (
@@ -661,17 +645,9 @@ class PredictionViewSet(viewsets.ModelViewSet):
         prediction = WildfirePrediction.objects.create(
             region=region,
             prediction_date=timezone.now(),
-            risk_level=risk_prediction["risk_level"].lower(),
+            risk_level=risk_prediction["risk_level"],
             confidence=risk_prediction["confidence"],
-            features_used={
-                "current_weather": {
-                    "temperature": current_weather.temperature,
-                    "humidity": current_weather.humidity,
-                    "wind_speed": current_weather.wind_speed,
-                    "precipitation": current_weather.precipitation,
-                },
-                "historical_patterns": historical_patterns,
-            },
+            features_used=risk_prediction["features_used"],
             model_version="1.0",
         )
 
@@ -705,12 +681,12 @@ class PredictionViewSet(viewsets.ModelViewSet):
                 if not risk_prediction:
                     continue
 
-                # Generate explanation
-                explanation = generate_prediction_explanation(
-                    risk_prediction["risk_level"],
-                    risk_prediction["confidence"],
-                    risk_prediction["risk_factors"],
-                    current_weather,
+                # Create a WildfirePrediction object for explanation
+                prediction_obj = WildfirePrediction(
+                    region=region,
+                    risk_level=risk_prediction["risk_level"],
+                    confidence=risk_prediction["confidence"],
+                    risk_factors=risk_prediction.get("risk_factors", {}),
                 )
 
                 predictions.append(
@@ -719,14 +695,14 @@ class PredictionViewSet(viewsets.ModelViewSet):
                         "risk_level": risk_prediction["risk_level"],
                         "confidence": risk_prediction["confidence"],
                         "risk_color": get_risk_color(risk_prediction["risk_level"]),
-                        "explanation": explanation,
+                        "explanation": generate_prediction_explanation(prediction_obj),
                         "timestamp": timezone.now().strftime("%Y-%m-%d %H:%M:%S"),
                     }
                 )
 
             return Response(predictions)
         except Exception as e:
-            logger.error(f"Error in prediction list view: {str(e)}")
+            logger.error(f"Error in prediction list: {str(e)}")
             return Response(
                 {"error": "Failed to generate predictions"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

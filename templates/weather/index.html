@@ -95,11 +95,11 @@ endblock %} {% block content %}
       </div>
       <div class="card-body">
         <div class="form-group mb-3">
-      <label for="region-select">Select Region:</label>
-      <select id="region-select" class="form-control">
-        <option value="">Select a region...</option>
-      </select>
-    </div>
+          <label for="region-select">Select Region:</label>
+          <select id="region-select" class="form-control">
+            <option value="">Select a region...</option>
+          </select>
+        </div>
         <div id="weather-data">
           <p class="text-muted">Select a region to view weather data</p>
         </div>
@@ -166,11 +166,11 @@ endblock %} {% block content %}
       });
   }
 
-    document
-      .getElementById("region-select")
-      .addEventListener("change", function (e) {
-        const regionId = e.target.value;
-        if (regionId) {
+  document
+    .getElementById("region-select")
+    .addEventListener("change", function (e) {
+      const regionId = e.target.value;
+      if (regionId) {
         fetchWeatherData(regionId);
         fetchForestData(regionId);
       } else {
@@ -180,8 +180,8 @@ endblock %} {% block content %}
     });
 
   function fetchWeatherData(regionId) {
-          showLoading();
-    fetch(`/api/weather/${regionId}/`)
+    showLoading();
+    fetch(`/api/weather/weather/${regionId}/fetch_current_weather/`)
       .then((response) => response.json())
       .then((data) => {
         if (data.error) {
@@ -189,13 +189,13 @@ endblock %} {% block content %}
         }
         updateWeatherData(data);
         updateRiskAssessment(data);
-              hideLoading();
-            })
-            .catch((error) => {
+        hideLoading();
+      })
+      .catch((error) => {
         console.error("Error fetching weather data:", error);
         showError("Failed to load weather data. Please try again later.");
-              hideLoading();
-            });
+        hideLoading();
+      });
   }
 
   function fetchForestData(regionId) {
@@ -280,7 +280,7 @@ endblock %} {% block content %}
     // Create new layer with forest data
     currentRegionLayer = L.geoJSON(data, {
       style: function (feature) {
-    return {
+        return {
           color: "#228B22",
           weight: 1,
           opacity: 0.7,

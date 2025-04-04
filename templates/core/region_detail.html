@@ -97,7 +97,7 @@ Wildfire Prediction System{% endblock %} {% block content %}
 <script>
   document.addEventListener("DOMContentLoaded", function () {
     // Fetch weather data
-    fetch(`/weather/api/current/${region.id}/`)
+    fetch(`/api/weather/weather/${region.id}/fetch_current_weather/`)
       .then((response) => response.json())
       .then((data) => {
         document.getElementById("weather-data").innerHTML = `
@@ -120,35 +120,35 @@ Wildfire Prediction System{% endblock %} {% block content %}
       });
 
     // Fetch risk assessment
-    fetch(`/predictions/api/risk/${region.id}/`)
+    fetch(`/predictions/api/results/predict-for-region/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ region_id: {{ region.id }} })
+    })
       .then((response) => response.json())
       .then((data) => {
-        const riskLevel = Math.round(data.risk_level * 100);
-        const riskColor =
-          riskLevel < 25
-            ? "success"
-            : riskLevel < 50
-            ? "warning"
-            : riskLevel < 75
-            ? "danger"
-            : "dark";
+        const riskLevel = data.risk_level === 'High Risk' ? 100 :
+                         data.risk_level === 'Medium Risk' ? 50 : 25;
+        const riskColor = data.risk_level === 'High Risk' ? 'danger' :
+                         data.risk_level === 'Medium Risk' ? 'warning' : 'success';
 
         document.getElementById("risk-assessment").innerHTML = `
                 <div class="text-center">
                     <h4 class="text-${riskColor}">${riskLevel}%</h4>
                     <p>Current Risk Level</p>
                     <div class="progress">
-                        <div class="progress-bar bg-${riskColor}" 
-                             role="progressbar" 
-                             style="width: ${riskLevel}%" 
-                             aria-valuenow="${riskLevel}" 
-                             aria-valuemin="0" 
+                        <div class="progress-bar bg-${riskColor}"
+                             role="progressbar"
+                             style="width: ${riskLevel}%"
+                             aria-valuenow="${riskLevel}"
+                             aria-valuemin="0"
                              aria-valuemax="100">
                         </div>
                     </div>
-                    <p class="mt-2"><small>Confidence: ${Math.round(
-                      data.confidence * 100
-                    )}%</small></p>
+                    <p class="mt-2"><small>Confidence: ${Math.round(data.confidence)}%</small></p>
+                    <p class="mt-2"><small>${data.explanation}</small></p>
                 </div>
             `;
       })

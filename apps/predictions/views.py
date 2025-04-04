@@ -478,7 +478,7 @@ def generate_prediction_explanation(prediction):
         season = get_current_season()
 
         # Create region-specific context with more detail
-        region_context = f"In {region_name}, a {region_type} characterized by {soil_type.lower()} soil and {vegetation_density} vegetation density in a {climate_zone} climate zone, "
+        region_context = f"The {region_name} region, characterized by its {soil_type.lower()} soil and {vegetation_density} vegetation density in a {climate_zone} climate zone, "
 
         # Build detailed weather conditions explanation
         weather_conditions = []
@@ -486,76 +486,76 @@ def generate_prediction_explanation(prediction):
         # Temperature explanation with seasonal context
         if temperature > 30:
             weather_conditions.append(
-                f"temperatures are significantly high at {temperature}°C, which is {'typical' if season in ['summer'] else 'unusually high'} for this {season} season and increases the risk of vegetation drying out"
+                f"is experiencing significantly high temperatures of {temperature}°C, which is {'typical' if season in ['summer'] else 'unusually high'} for this {season} season and significantly increases the risk of vegetation drying out"
             )
         elif temperature > 25:
             weather_conditions.append(
-                f"temperatures are elevated at {temperature}°C, {'as expected' if season in ['summer', 'spring'] else 'which is above average'} for this {season} season"
+                f"has elevated temperatures of {temperature}°C, which is {'as expected' if season in ['summer', 'spring'] else 'above average'} for this {season} season"
             )
         elif temperature > 20:
             weather_conditions.append(
-                f"temperatures are moderate at {temperature}°C, providing {'favorable' if season in ['spring', 'autumn'] else 'relatively safe'} conditions"
+                f"has moderate temperatures of {temperature}°C, providing {'favorable' if season in ['spring', 'autumn'] else 'relatively safe'} conditions"
             )
         else:
             weather_conditions.append(
-                f"temperatures are cool at {temperature}°C, {'typical' if season in ['winter', 'autumn'] else 'unusually low'} for this {season} season"
+                f"has cool temperatures of {temperature}°C, which is {'typical' if season in ['winter', 'autumn'] else 'unusually low'} for this {season} season"
             )
 
         # Humidity explanation with soil context
         if humidity < 30:
             weather_conditions.append(
-                f"humidity is critically low at {humidity}%, which is particularly concerning for the {soil_type.lower()} soil's moisture retention capacity and could lead to rapid drying of vegetation"
+                f"Humidity is critically low at {humidity}%, which is particularly concerning given the {soil_type.lower()} soil's moisture retention capacity and could lead to rapid drying of vegetation"
             )
         elif humidity < 40:
             weather_conditions.append(
-                f"humidity is low at {humidity}%, creating dry conditions that are {'especially risky' if soil_type == 'Sandy' else 'moderately concerning'} given the soil composition"
+                f"Humidity is low at {humidity}%, creating dry conditions that are {'especially risky' if soil_type == 'Sandy' else 'moderately concerning'} given the soil composition"
             )
         elif humidity < 60:
             weather_conditions.append(
-                f"humidity is moderate at {humidity}%, helping maintain {'some' if soil_type == 'Clay' else 'adequate'} moisture in the soil and vegetation"
+                f"Humidity is moderate at {humidity}%, helping maintain {'some' if soil_type == 'Clay' else 'adequate'} moisture in the soil and vegetation"
             )
         else:
             weather_conditions.append(
-                f"humidity is high at {humidity}%, which helps preserve moisture in the {soil_type.lower()} soil and reduces fire risk"
+                f"Humidity is high at {humidity}%, which helps preserve moisture in the {soil_type.lower()} soil and reduces fire risk"
             )
 
         # Wind explanation with vegetation context
         if wind_speed > 30:
             weather_conditions.append(
-                f"strong winds at {wind_speed} km/h pose a significant risk, particularly in areas with {vegetation_density} vegetation where fire could spread rapidly"
+                f"Strong winds of {wind_speed} km/h pose a significant risk, particularly in areas with {vegetation_density} vegetation where fire could spread rapidly"
             )
         elif wind_speed > 20:
             weather_conditions.append(
-                f"moderate to strong winds at {wind_speed} km/h, combined with the {vegetation_density} vegetation, could facilitate fire spread if ignition occurs"
+                f"Moderate to strong winds of {wind_speed} km/h, combined with the {vegetation_density} vegetation, could facilitate fire spread if ignition occurs"
             )
         elif wind_speed > 10:
             weather_conditions.append(
-                f"moderate winds at {wind_speed} km/h are present, with {'increased' if vegetation_density == 'dense' else 'moderate'} potential for fire spread through the {vegetation_density} vegetation"
+                f"Moderate winds of {wind_speed} km/h are present, with {'increased' if vegetation_density == 'dense' else 'moderate'} potential for fire spread through the {vegetation_density} vegetation"
             )
         else:
             weather_conditions.append(
-                f"calm winds at {wind_speed} km/h provide favorable conditions, though the {vegetation_density} vegetation could still support fire spread if other risk factors are present"
+                f"Calm winds of {wind_speed} km/h provide favorable conditions, though the {vegetation_density} vegetation could still support fire spread if other risk factors are present"
             )
 
         # Precipitation explanation with climate context
         if precipitation == 0:
             weather_conditions.append(
-                f"there is no precipitation, which is {'particularly concerning' if climate_zone in ['mediterranean', 'semi_arid'] else 'concerning'} for this {climate_zone} climate zone and increases fire risk"
+                f"There is no precipitation, which is {'particularly concerning' if climate_zone in ['mediterranean', 'semi_arid'] else 'concerning'} for this {climate_zone} climate zone and increases fire risk"
             )
         elif precipitation < 5:
             weather_conditions.append(
-                f"minimal precipitation of {precipitation}mm provides limited moisture, {'typical' if climate_zone == 'semi_arid' else 'below average'} for this {climate_zone} region"
+                f"Minimal precipitation of {precipitation}mm provides limited moisture, which is {'typical' if climate_zone == 'semi_arid' else 'below average'} for this {climate_zone} region"
             )
         elif precipitation < 10:
             weather_conditions.append(
-                f"low precipitation of {precipitation}mm helps reduce fire risk, though {'may be insufficient' if climate_zone in ['mediterranean', 'semi_arid'] else 'provides moderate protection'} in this climate"
+                f"Low precipitation of {precipitation}mm helps reduce fire risk, though it {'may be insufficient' if climate_zone in ['mediterranean', 'semi_arid'] else 'provides moderate protection'} in this climate"
             )
         else:
             weather_conditions.append(
-                f"significant precipitation of {precipitation}mm provides good protection against fire risk, {'especially beneficial' if climate_zone in ['mediterranean', 'semi_arid'] else 'maintaining normal moisture levels'} for this {climate_zone} region"
+                f"Significant precipitation of {precipitation}mm provides good protection against fire risk, which is {'especially beneficial' if climate_zone in ['mediterranean', 'semi_arid'] else 'maintaining normal moisture levels'} for this {climate_zone} region"
             )
 
-        # Combine all explanations
+        # Combine all explanations with proper punctuation
         weather_text = ". ".join(weather_conditions)
         explanation = f"{region_context}{weather_text}."
 

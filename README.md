@@ -1,144 +1,143 @@
-# Wildfire Risk Monitoring for Morocco
+# Wildfire Prediction System
 
-A Django-based web application for monitoring wildfire risks and historical data across Morocco.
+A Django-based system for predicting and monitoring wildfire risks using weather data and historical patterns.
 
 ## Features
 
-- Real-time weather data monitoring using OpenWeatherMap API
-- Historical wildfire data visualization
-- Interactive mapping of wildfire risk areas
-- Responsive design for all devices
+- Real-time weather data integration
+- Historical data analysis
+- Interactive mapping
+- API documentation
+- Monitoring and logging
+- Rate limiting and security features
 
 ## Prerequisites
 
-- Python 3.8 or higher
-- pip (Python package manager)
-- Git
+- Python 3.11+
+- PostgreSQL
+- Redis
+- Docker (optional)
 
-## Installation
+## Local Development Setup
 
-1. **Clone the repository**
+1. Clone the repository:
 
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/yourusername/wildfire_prediction.git
    cd wildfire_prediction
    ```
 
-2. **Create and activate a virtual environment**
-
-   For Windows:
+2. Create and activate a virtual environment:
 
    ```bash
    python -m venv venv
-   .\venv\Scripts\Activate.ps1  # For PowerShell
-   # OR
-   .\venv\Scripts\activate.bat  # For Command Prompt
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
-   For macOS/Linux:
-
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate
-   ```
-
-3. **Install dependencies**
+3. Install dependencies:
 
    ```bash
    pip install -r requirements.txt
    ```
 
-4. **Set up environment variables**
-
-   Copy the example environment file and update with your values:
+4. Set up environment variables:
 
    ```bash
-   cp .env-example .env
+   cp .env.example .env
+   # Edit .env with your configuration
    ```
 
-   Then edit the `.env` file with your actual values, particularly:
-
-   - `SECRET_KEY`: Your Django secret key
-   - `OPENWEATHER_API_KEY`: Your OpenWeatherMap API key
-
-5. **Run database migrations**
+5. Run migrations:
 
    ```bash
    python manage.py migrate
    ```
 
-6. **Create a superuser (admin)**
+6. Create a superuser:
 
    ```bash
    python manage.py createsuperuser
    ```
 
-7. **Collect static files**
+7. Run the development server:
 
    ```bash
-   python manage.py collectstatic
+   python manage.py runserver
    ```
 
-## Running the Application
+## Docker Development Setup
 
-### Development Server
+1. Build and start the containers:
+
+   ```bash
+   docker-compose up --build
+   ```
+
+2. Run migrations:
+
+   ```bash
+   docker-compose exec web python manage.py migrate
+   ```
+
+3. Create a superuser:
+
+   ```bash
+   docker-compose exec web python manage.py createsuperuser
+   ```
+
+## Testing
+
+Run tests with coverage:
 
 ```bash
-python manage.py runserver
+pytest --cov=. --cov-report=term-missing
 ```
 
-The application will be available at http://127.0.0.1:8000/
+## Code Quality
 
-### Accessing the Admin Panel
+The project uses several tools to maintain code quality:
 
-Visit http://127.0.0.1:8000/admin/ and login with the superuser credentials you created.
+- Black for code formatting
+- isort for import sorting
+- flake8 for linting
+- mypy for type checking
+- bandit for security checks
 
-## Troubleshooting
+Run all checks:
 
-### Virtual Environment Issues
+```bash
+pre-commit run --all-files
+```
 
-If you have problems with the virtual environment:
+## API Documentation
 
-1. Make sure PowerShell execution policy allows running scripts (Windows):
-
-   ```bash
-   Set-ExecutionPolicy RemoteSigned -Scope Process
-   ```
-
-2. If packages are being installed in the user location instead of the virtual environment:
-   ```bash
-   python -m pip install --force-reinstall -r requirements.txt
-   ```
-
-### Module Not Found Errors
-
-If Django or other modules are not found:
-
-1. Ensure you've activated the virtual environment
-2. Try reinstalling the package directly:
-   ```bash
-   pip install django==5.0.2
-   ```
+API documentation is available at `/api/docs/` when running the server.
 
 ## Deployment
 
-For production deployment:
+1. Set up production environment variables
+2. Build and push Docker image
+3. Deploy using your preferred platform (e.g., AWS, GCP, Heroku)
 
-1. Set `DEBUG=False` in your `.env` file
-2. Configure proper `ALLOWED_HOSTS` in your `.env` file
-3. Enable all security settings in `.env`:
+## Contributing
 
-   ```
-   SECURE_SSL_REDIRECT=True
-   SESSION_COOKIE_SECURE=True
-   CSRF_COOKIE_SECURE=True
-   ```
-
-4. Use a production-ready server like Gunicorn:
-   ```bash
-   gunicorn wildfire_prediction.wsgi:application
-   ```
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
 
 ## License
 
-[MIT License](LICENSE)
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Support
+
+For support, please open an issue in the GitHub repository or contact the maintainers.
+
+## Acknowledgments
+
+- OpenWeatherMap API for weather data
+- Django framework
+- Leaflet for map visualization
+- All contributors and maintainers

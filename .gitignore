@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 *.so
 .Python
+env/
 build/
 develop-eggs/
 dist/
@@ -15,7 +16,6 @@ lib64/
 parts/
 sdist/
 var/
-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
@@ -26,28 +26,44 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 media/
-static/
+staticfiles/
 
-# Environment
+# Environment variables
 .env
 .venv
-env/
 venv/
 ENV/
-env_new/
-venv_new/
-myenv/
-env_fresh/
-*env*/
 
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
-.DS_Store
 
-# Project specific
-*.bak
-*.tmp
-*.temp
+# OS
+.DS_Store
+Thumbs.db
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# Coverage
+.coverage
+coverage.xml
+htmlcov/
+
+# Docker
+.docker/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Logs
+logs/
+*.log
+
+# Local development
+*.local

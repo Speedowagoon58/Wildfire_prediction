@@ -1,46 +1,114 @@
-{% extends 'base.html' %}
-
-{% block title %}Home - Wildfire Risk Monitoring{% endblock %}
-
-{% block content %}
+{% extends 'base.html' %} {% load static %} {% block title %}Home - Wildfire
+Prediction System{% endblock %} {% block extra_head %}
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+  crossorigin=""
+/>
+<script
+  src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+  crossorigin=""
+></script>
+{% endblock %} {% block content %}
 <div class="row">
-  <div class="col-md-12">
-    <h1 class="mb-4">Welcome to Wildfire Risk Monitoring</h1>
-    <p class="lead">
-      Monitor wildfire risks and historical data across Morocco.
-    </p>
-  </div>
-</div>
-
-<div class="row mt-4">
-  <div class="col-md-6">
-    <div class="card">
+  <div class="col-md-8">
+    <div class="card mb-4">
       <div class="card-body">
-        <h5 class="card-title">Current Weather</h5>
+        <h2 class="card-title">Welcome to the Wildfire Prediction System</h2>
         <p class="card-text">
-          View real-time weather conditions and risk assessments for different
-          regions.
+          This system helps predict and monitor wildfire risks across different
+          regions in Morocco. Use our tools to:
         </p>
-        <a href="{% url 'weather:index' %}" class="btn btn-primary">View Weather Data</a>
+        <ul>
+          <li>Monitor real-time weather conditions</li>
+          <li>View wildfire risk predictions</li>
+          <li>Track historical wildfire events</li>
+          <li>Analyze regional data</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-header">
+        <h3 class="card-title mb-0">Region Map</h3>
+      </div>
+      <div class="card-body">
+        <div id="map" style="height: 400px"></div>
+      </div>
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-header">
+        <h3 class="card-title mb-0">Recent Wildfire Events</h3>
+      </div>
+      <div class="card-body">
+        {% if recent_events %}
+        <div class="list-group">
+          {% for event in recent_events %}
+          <a
+            href="{% url 'core:region_detail' event.region.pk %}"
+            class="list-group-item list-group-item-action"
+          >
+            <div class="d-flex w-100 justify-content-between">
+              <h5 class="mb-1">{{ event.region.name }}</h5>
+              <small>{{ event.start_date|date }}</small>
+            </div>
+            <p class="mb-1">Severity: {{ event.get_severity_display }}</p>
+            <small>Area affected: {{ event.area_affected }} km²</small>
+          </a>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p>No recent wildfire events.</p>
+        {% endif %}
       </div>
     </div>
   </div>
-  <div class="col-md-6">
-    <div class="card">
+
+  <div class="col-md-4">
+    <div class="card mb-4">
+      <div class="card-header">
+        <h3 class="card-title mb-0">Monitored Regions</h3>
+      </div>
       <div class="card-body">
-        <h5 class="card-title">Historical Data</h5>
-        <p class="card-text">
-          Explore historical wildfire data and patterns across Morocco.
-        </p>
-        <a href="{% url 'historical_data:index' %}" class="btn btn-primary">View Historical Data</a>
+        {% if regions %}
+        <div class="list-group">
+          {% for region in regions %}
+          <a
+            href="{% url 'core:region_detail' region.pk %}"
+            class="list-group-item list-group-item-action"
+          >
+            {{ region.name }}
+          </a>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p>No regions available.</p>
+        {% endif %}
       </div>
     </div>
   </div>
 </div>
 
-<div class="row mt-4">
-  <div class="col-md-12">
-    <div id="map" class="map-container"></div>
-  </div>
-</div>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    // Initialize the map centered on Morocco
+    var map = L.map("map").setView([31.7917, -7.0926], 6);
+
+    // Add OpenStreetMap tiles
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    }).addTo(map);
+
+    // Add markers for each region
+    {% for region in regions %}
+    L.marker([{{ region.latitude }}, {{ region.longitude }}])
+      .bindPopup("<b>{{ region.name }}</b><br>Elevation: {{ region.elevation }}m")
+      .addTo(map);
+    {% endfor %}
+  });
+</script>
 {% endblock %}

@@ -1,55 +1,421 @@
-{% extends 'base.html' %} {% block title %}Historical Data - Wildfire Risk
-Monitoring{% endblock %} {% block content %}
+{% extends "base.html" %} {% load static %} {% block extra_css %}
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css"
+/>
+<style>
+  .filters {
+    background-color: var(--card-bg);
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-color);
+  }
+  .statistics-card {
+    background-color: var(--card-bg);
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-color);
+  }
+  .statistics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+  }
+  .statistic-item {
+    text-align: center;
+    padding: 1rem;
+    background-color: var(--hover-color);
+    border-radius: 0.5rem;
+  }
+  .statistic-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+  }
+  .statistic-label {
+    font-size: 0.9rem;
+    color: var(--text-color);
+    opacity: 0.8;
+  }
+  .chart-container {
+    background-color: var(--card-bg);
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-color);
+    height: 400px;
+  }
+  .fire-table {
+    background-color: var(--card-bg);
+    border-radius: 0.5rem;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+  }
+  .fire-table th {
+    background-color: var(--hover-color);
+  }
+  .fire-table th,
+  .fire-table td {
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+  }
+  .loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    display: none;
+  }
+  .loading .loading-overlay {
+    display: flex;
+  }
+  .loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid var(--border-color);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  .error-message {
+    color: #dc3545;
+    margin-top: 1rem;
+    padding: 1rem;
+    border-radius: 0.25rem;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+  }
+  .retry-button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 0.25rem;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    margin-top: 1rem;
+  }
+  .retry-button:hover {
+    background-color: var(--hover-color);
+  }
+</style>
+{% endblock %} {% block title %}Historical Data - Wildfire Risk Monitoring{%
+endblock %} {% block content %}
+<div class="loading-overlay">
+  <div class="loading-spinner"></div>
+</div>
+
 <div class="row">
   <div class="col-md-12">
-    <h1 class="mb-4">Historical Wildfire Data</h1>
+    <h1 class="mb-4">Historical Weather & Fire Data</h1>
   </div>
 </div>
 
 <div class="row">
-  <div class="col-md-8">
-    <div class="table-responsive">
-      <table class="table table-striped historical-table">
-        <thead>
-          <tr>
-            <th>Location</th>
-            <th>Date</th>
-            <th>Area Affected</th>
-          </tr>
-        </thead>
-        <tbody id="historical-data">
-          <tr>
-            <td colspan="3" class="text-center">Loading data...</td>
-          </tr>
-        </tbody>
-      </table>
+  <div class="col-md-3">
+    <div class="filter-card p-3">
+      <h5>Filters</h5>
+      <div class="form-group mb-3">
+        <label for="region-select">Region:</label>
+        <select id="region-select" class="form-control">
+          <option value="">Select a region...</option>
+        </select>
+      </div>
+      <div class="form-group mb-3">
+        <label for="date-range">Date Range:</label>
+        <div class="input-group">
+          <input type="date" id="start-date" class="form-control" />
+          <span class="input-group-text">to</span>
+          <input type="date" id="end-date" class="form-control" />
+        </div>
+      </div>
+      <div class="form-group mb-3">
+        <label for="data-type">Data Type:</label>
+        <select id="data-type" class="form-control">
+          <option value="temperature">Temperature</option>
+          <option value="humidity">Humidity</option>
+          <option value="wind_speed">Wind Speed</option>
+          <option value="precipitation">Precipitation</option>
+          <option value="fire_incidents">Fire Incidents</option>
+        </select>
+      </div>
+      <button id="apply-filters" class="btn btn-primary w-100">
+        Apply Filters
+      </button>
+    </div>
+
+    <div id="statistics" class="filter-card p-3">
+      <h5>Statistics</h5>
+      <div id="stats-content">
+        <p class="text-muted">Select filters to view statistics</p>
+      </div>
     </div>
   </div>
-  <div class="col-md-4">
-    <div id="map" class="map-container"></div>
+
+  <div class="col-md-9">
+    <div class="chart-container">
+      <canvas id="historical-chart"></canvas>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">Historical Data</h5>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Temperature (°C)</th>
+                <th>Humidity (%)</th>
+                <th>Wind Speed (m/s)</th>
+                <th>Precipitation (mm)</th>
+                <th>Fire Incidents</th>
+              </tr>
+            </thead>
+            <tbody id="data-table-body">
+              <tr>
+                <td colspan="6" class="text-center py-3">
+                  <p class="text-muted">Select filters to view data</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 {% endblock %} {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+
 <script>
+  let chart;
+  let currentDataType = "temperature";
+
   document.addEventListener("DOMContentLoaded", function () {
-    // Load historical data
-    fetch("/api/historical-fires/")
+    initializeChart();
+    setupEventListeners();
+    loadRegions();
+
+    // Set default date range (last 30 days)
+    const today = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+
+    document.getElementById("end-date").valueAsDate = today;
+    document.getElementById("start-date").valueAsDate = thirtyDaysAgo;
+  });
+
+  function initializeChart() {
+    const ctx = document.getElementById("historical-chart").getContext("2d");
+    chart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: "Temperature",
+            data: [],
+            borderColor: "rgb(75, 192, 192)",
+            tension: 0.1,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+          },
+        },
+      },
+    });
+  }
+
+  function setupEventListeners() {
+    document
+      .getElementById("data-type")
+      .addEventListener("change", function (e) {
+        currentDataType = e.target.value;
+        updateChartType(currentDataType);
+      });
+
+    document
+      .getElementById("apply-filters")
+      .addEventListener("click", fetchHistoricalData);
+  }
+
+  function loadRegions() {
+    showLoading();
+    fetch("/api/regions/")
       .then((response) => response.json())
       .then((data) => {
-        const tbody = document.getElementById("historical-data");
-        tbody.innerHTML = "";
-
-        data.fires.forEach((fire) => {
-          const row = document.createElement("tr");
-          row.innerHTML = `
-                    <td>${fire.location}</td>
-                    <td>${fire.date}</td>
-                    <td>${fire.area_affected}</td>
-                `;
-          tbody.appendChild(row);
+        const select = document.getElementById("region-select");
+        data.forEach((region) => {
+          const option = document.createElement("option");
+          option.value = region.id;
+          option.textContent = region.name;
+          select.appendChild(option);
         });
+        hideLoading();
       })
-      .catch((error) => console.error("Error loading historical data:", error));
-  });
+      .catch((error) => {
+        console.error("Error fetching regions:", error);
+        showError("Failed to load regions. Please try again later.");
+        hideLoading();
+      });
+  }
+
+  function fetchHistoricalData() {
+    const regionId = document.getElementById("region-select").value;
+    const startDate = document.getElementById("start-date").value;
+    const endDate = document.getElementById("end-date").value;
+
+    if (!regionId || !startDate || !endDate) {
+      alert("Please select region and date range.");
+      return;
+    }
+
+    showLoading();
+    fetch(
+      `/api/historical-fires/?region_id=${regionId}&start_date=${startDate}&end_date=${endDate}`
+    )
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.error) {
+          throw new Error(data.error);
+        }
+        updateChart(data.fires);
+        updateTable(data.fires);
+        updateStatistics(data.statistics);
+        hideLoading();
+      })
+      .catch((error) => {
+        console.error("Error fetching historical data:", error);
+        showError("Failed to load historical data. Please try again later.");
+        hideLoading();
+      });
+  }
+
+  function updateChart(data) {
+    // Prepare data for chart
+    const dates = data.map((item) => new Date(item.date).toLocaleDateString());
+    const values = data.map((item) => item[currentDataType]);
+
+    // Update chart data
+    chart.data.labels = dates;
+    chart.data.datasets[0].data = values;
+
+    // Update chart display
+    updateChartType(currentDataType);
+    chart.update();
+  }
+
+  function updateChartType(dataType) {
+    const dataset = chart.data.datasets[0];
+    dataset.label = dataType.charAt(0).toUpperCase() + dataType.slice(1);
+
+    // Update colors based on data type
+    switch (dataType) {
+      case "temperature":
+        dataset.borderColor = "rgb(255, 99, 132)";
+        break;
+      case "humidity":
+        dataset.borderColor = "rgb(54, 162, 235)";
+        break;
+      case "wind_speed":
+        dataset.borderColor = "rgb(255, 206, 86)";
+        break;
+      case "precipitation":
+        dataset.borderColor = "rgb(75, 192, 192)";
+        break;
+      case "fire_incidents":
+        dataset.borderColor = "rgb(153, 102, 255)";
+        break;
+    }
+
+    chart.update();
+  }
+
+  function updateTable(data) {
+    const tbody = document.getElementById("data-table-body");
+    tbody.innerHTML = "";
+
+    data.forEach((item) => {
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${new Date(item.date).toLocaleDateString()}</td>
+        <td>${item.max_temperature?.toFixed(1) || "N/A"}</td>
+        <td>${item.avg_humidity?.toFixed(1) || "N/A"}</td>
+        <td>${item.max_wind_speed?.toFixed(1) || "N/A"}</td>
+        <td>N/A</td>
+        <td>${item.area_affected ? "Yes" : "No"}</td>
+      `;
+      tbody.appendChild(row);
+    });
+  }
+
+  function updateStatistics(stats) {
+    const statsContent = document.getElementById("stats-content");
+    statsContent.innerHTML = `
+      <div class="mb-2">
+        <strong>Temperature:</strong>
+        <div>Avg: ${stats.avg_temperature.toFixed(1)}°C</div>
+      </div>
+      <div class="mb-2">
+        <strong>Humidity:</strong>
+        <div>Avg: ${stats.avg_humidity.toFixed(1)}%</div>
+      </div>
+      <div class="mb-2">
+        <strong>Wind Speed:</strong>
+        <div>Avg: ${stats.avg_wind_speed.toFixed(1)} m/s</div>
+      </div>
+      <div class="mb-2">
+        <strong>Area Affected:</strong>
+        <div>Total: ${stats.total_area_affected.toFixed(1)} ha</div>
+      </div>
+      <div>
+        <strong>Fires:</strong>
+        <div>Total: ${stats.total_fires}</div>
+        <div>Avg Containment Time: ${stats.avg_containment_time.toFixed(
+          1
+        )} hours</div>
+      </div>
+    `;
+  }
+
+  function showLoading() {
+    document.querySelector(".loading-overlay").style.display = "flex";
+  }
+
+  function hideLoading() {
+    document.querySelector(".loading-overlay").style.display = "none";
+  }
+
+  function showError(message) {
+    const errorDiv = document.createElement("div");
+    errorDiv.className = "error-message";
+    errorDiv.innerHTML = `
+      ${message}
+      <button class="retry-button" onclick="window.location.reload()">Retry</button>
+    `;
+    document.querySelector(".filter-card").after(errorDiv);
+  }
 </script>
 {% endblock %}

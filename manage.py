@@ -6,8 +6,19 @@ import sys
 
 def main():
     """Run administrative tasks."""
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'wildfire_prediction.settings')
+    # Add the project root directory and apps directory to the Python path
+    project_root = os.path.dirname(os.path.abspath(__file__))
+    sys.path.append(project_root)
+    sys.path.append(os.path.join(project_root, "apps"))
+
+    os.environ["DJANGO_SETTINGS_MODULE"] = "config.settings"
     try:
+        # --- DIAGNOSTIC PRINT --- # REMOVED
+        # print("--- sys.path --- DUMP ---")
+        # import pprint
+        # pprint.pprint(sys.path)
+        # print("--- END sys.path DUMP ---")
+        # ----------------------- # REMOVED
         from django.core.management import execute_from_command_line
     except ImportError as exc:
         raise ImportError(
@@ -18,5 +29,5 @@ def main():
     execute_from_command_line(sys.argv)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

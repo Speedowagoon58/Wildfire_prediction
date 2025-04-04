@@ -1,55 +1,328 @@
-{% extends 'base.html' %} {% block title %}Weather Data - Wildfire Risk
-Monitoring{% endblock %} {% block content %}
+{% extends "base.html" %} {% load static %} {% block extra_css %}
+<style>
+  .risk-level {
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    margin-bottom: 1rem;
+    text-align: center;
+    font-weight: bold;
+  }
+  .risk-low {
+    background-color: #d4edda;
+    color: #155724;
+  }
+  .risk-medium {
+    background-color: #fff3cd;
+    color: #856404;
+  }
+  .risk-high {
+    background-color: #f8d7da;
+    color: #721c24;
+  }
+  .loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    display: none;
+  }
+  .loading .loading-overlay {
+    display: flex;
+  }
+  .loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid var(--border-color);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  .error-message {
+    color: #dc3545;
+    margin-top: 1rem;
+    padding: 1rem;
+    border-radius: 0.25rem;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+  }
+  .retry-button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 0.25rem;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    margin-top: 1rem;
+  }
+  .retry-button:hover {
+    background-color: var(--hover-color);
+  }
+  #map {
+    height: 400px;
+    width: 100%;
+    border-radius: 0.5rem;
+    margin-top: 1rem;
+  }
+</style>
+{% endblock %} {% block title %}Weather Data - Wildfire Risk Monitoring{%
+endblock %} {% block content %}
+<div class="loading-overlay">
+  <div class="loading-spinner"></div>
+</div>
+
 <div class="row">
   <div class="col-md-12">
-    <h1 class="mb-4">Weather Data</h1>
+    <h1 class="mb-4">Current Weather Data</h1>
   </div>
 </div>
 
 <div class="row">
   <div class="col-md-4">
-    <div class="region-select">
-      <label for="region" class="form-label">Select Region</label>
-      <select class="form-select" id="region">
-        <option value="">Choose a region...</option>
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">Weather Information</h5>
+      </div>
+      <div class="card-body">
+        <div class="form-group mb-3">
+      <label for="region-select">Select Region:</label>
+      <select id="region-select" class="form-control">
+        <option value="">Select a region...</option>
       </select>
     </div>
-  </div>
-</div>
-
-<div class="row mt-4">
-  <div class="col-md-12">
-    <div class="risk-indicator">Select a region to view risk assessment</div>
-  </div>
-</div>
-
-<div class="row mt-4">
-  <div class="col-md-6">
-    <div class="weather-card">
-      <h3>Current Conditions</h3>
-      <div id="weather-data">Select a region to view weather data</div>
+        <div id="weather-data">
+          <p class="text-muted">Select a region to view weather data</p>
+        </div>
+        <div id="risk-assessment" class="mt-3">
+          <h6>Fire Risk Assessment</h6>
+          <div id="risk-level" class="risk-level">No data available</div>
+        </div>
+      </div>
     </div>
   </div>
-  <div class="col-md-6">
-    <div id="map" class="map-container"></div>
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">Region Map</h5>
+      </div>
+      <div class="card-body">
+        <div id="map"></div>
+      </div>
+    </div>
   </div>
 </div>
 {% endblock %} {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.css"
+/>
+
 <script>
+  let map;
+  let currentRegionLayer;
+
   document.addEventListener("DOMContentLoaded", function () {
-    // Load regions
+    initializeMap();
+    loadRegions();
+  });
+
+  function initializeMap() {
+    map = L.map("map").setView([0, 0], 2);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    }).addTo(map);
+  }
+
+  function loadRegions() {
+    showLoading();
     fetch("/api/regions/")
       .then((response) => response.json())
       .then((data) => {
-        const select = document.getElementById("region");
-        data.regions.forEach((region) => {
+        const select = document.getElementById("region-select");
+        data.forEach((region) => {
           const option = document.createElement("option");
           option.value = region.id;
           option.textContent = region.name;
           select.appendChild(option);
         });
+        hideLoading();
       })
-      .catch((error) => console.error("Error loading regions:", error));
-  });
+      .catch((error) => {
+        console.error("Error fetching regions:", error);
+        showError("Failed to load regions. Please try again later.");
+        hideLoading();
+      });
+  }
+
+    document
+      .getElementById("region-select")
+      .addEventListener("change", function (e) {
+        const regionId = e.target.value;
+        if (regionId) {
+        fetchWeatherData(regionId);
+        fetchForestData(regionId);
+      } else {
+        clearWeatherData();
+        clearMap();
+      }
+    });
+
+  function fetchWeatherData(regionId) {
+          showLoading();
+    fetch(`/api/weather/${regionId}/`)
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.error) {
+          throw new Error(data.error);
+        }
+        updateWeatherData(data);
+        updateRiskAssessment(data);
+              hideLoading();
+            })
+            .catch((error) => {
+        console.error("Error fetching weather data:", error);
+        showError("Failed to load weather data. Please try again later.");
+              hideLoading();
+            });
+  }
+
+  function fetchForestData(regionId) {
+    showLoading();
+    fetch(`/api/forests/${regionId}/`)
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.error) {
+          throw new Error(data.error);
+        }
+        updateMap(data);
+        hideLoading();
+      })
+      .catch((error) => {
+        console.error("Error fetching forest data:", error);
+        showError("Failed to load forest data. Please try again later.");
+        hideLoading();
+      });
+  }
+
+  function updateWeatherData(data) {
+    const weatherDiv = document.getElementById("weather-data");
+    weatherDiv.innerHTML = `
+      <div class="mb-2">
+        <strong>Temperature:</strong> ${data.temperature.toFixed(1)}°C
+      </div>
+      <div class="mb-2">
+        <strong>Humidity:</strong> ${data.humidity.toFixed(1)}%
+      </div>
+      <div class="mb-2">
+        <strong>Wind Speed:</strong> ${data.wind_speed.toFixed(1)} m/s
+      </div>
+      <div class="mb-2">
+        <strong>Precipitation:</strong> ${data.precipitation.toFixed(1)} mm
+      </div>
+      <div>
+        <strong>Last Updated:</strong> ${new Date(
+          data.timestamp
+        ).toLocaleString()}
+      </div>
+    `;
+  }
+
+  function updateRiskAssessment(data) {
+    const riskLevel = calculateRiskLevel(data);
+    const riskDiv = document.getElementById("risk-level");
+    riskDiv.className = `risk-level risk-${riskLevel.toLowerCase()}`;
+    riskDiv.textContent = `Risk Level: ${riskLevel}`;
+  }
+
+  function calculateRiskLevel(data) {
+    // Simple risk calculation based on temperature, humidity, and wind speed
+    let riskScore = 0;
+
+    // Temperature contribution (higher temperature = higher risk)
+    if (data.temperature > 30) riskScore += 3;
+    else if (data.temperature > 25) riskScore += 2;
+    else if (data.temperature > 20) riskScore += 1;
+
+    // Humidity contribution (lower humidity = higher risk)
+    if (data.humidity < 30) riskScore += 3;
+    else if (data.humidity < 50) riskScore += 2;
+    else if (data.humidity < 70) riskScore += 1;
+
+    // Wind speed contribution (higher wind speed = higher risk)
+    if (data.wind_speed > 20) riskScore += 3;
+    else if (data.wind_speed > 10) riskScore += 2;
+    else if (data.wind_speed > 5) riskScore += 1;
+
+    // Determine risk level based on total score
+    if (riskScore >= 7) return "HIGH";
+    if (riskScore >= 4) return "MEDIUM";
+    return "LOW";
+  }
+
+  function updateMap(data) {
+    // Clear existing layer if any
+    if (currentRegionLayer) {
+      map.removeLayer(currentRegionLayer);
+    }
+
+    // Create new layer with forest data
+    currentRegionLayer = L.geoJSON(data, {
+      style: function (feature) {
+    return {
+          color: "#228B22",
+          weight: 1,
+          opacity: 0.7,
+          fillOpacity: 0.3,
+        };
+      },
+    }).addTo(map);
+
+    // Fit map to the bounds of the region
+    map.fitBounds(currentRegionLayer.getBounds());
+  }
+
+  function clearWeatherData() {
+    document.getElementById("weather-data").innerHTML =
+      "<p class='text-muted'>Select a region to view weather data</p>";
+    document.getElementById("risk-level").className = "risk-level";
+    document.getElementById("risk-level").textContent = "No data available";
+  }
+
+  function clearMap() {
+    if (currentRegionLayer) {
+      map.removeLayer(currentRegionLayer);
+      currentRegionLayer = null;
+    }
+  }
+
+  function showLoading() {
+    document.querySelector(".loading-overlay").style.display = "flex";
+  }
+
+  function hideLoading() {
+    document.querySelector(".loading-overlay").style.display = "none";
+  }
+
+  function showError(message) {
+    const errorDiv = document.createElement("div");
+    errorDiv.className = "error-message";
+    errorDiv.innerHTML = `
+      ${message}
+      <button class="retry-button" onclick="window.location.reload()">Retry</button>
+    `;
+    document.querySelector(".card").after(errorDiv);
+  }
 </script>
 {% endblock %}

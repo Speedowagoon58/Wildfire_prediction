@@ -1,0 +1,158 @@
+{% extends 'base.html' %} {% load static %} {% block title %}{{ region.name }} -
+Wildfire Prediction System{% endblock %} {% block content %}
+<div class="row">
+  <div class="col-md-8">
+    <div class="card mb-4">
+      <div class="card-header">
+        <h2 class="card-title mb-0">{{ region.name }}</h2>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <h4>Location Details</h4>
+            <p><strong>Latitude:</strong> {{ region.latitude }}</p>
+            <p><strong>Longitude:</strong> {{ region.longitude }}</p>
+            <p>
+              <strong>Elevation:</strong> {% if region.elevation %}{{
+              region.elevation }} m{% else %}N/A{% endif %}
+            </p>
+          </div>
+          <div class="col-md-6">
+            <h4>Statistics</h4>
+            <p><strong>Total Events:</strong> {{ events|length }}</p>
+            <p>
+              <strong>Last Updated:</strong> {{ region.updated_at|date:"F j, Y"
+              }}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title mb-0">Wildfire Events</h3>
+      </div>
+      <div class="card-body">
+        {% if events %}
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Severity</th>
+                <th>Area Affected</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for event in events %}
+              <tr>
+                <td>{{ event.start_date|date:"F j, Y" }}</td>
+                <td>
+                  <span
+                    class="badge bg-{% if event.severity == 1 %}success{% elif event.severity == 2 %}warning{% elif event.severity == 3 %}danger{% else %}dark{% endif %}"
+                  >
+                    {{ event.get_severity_display }}
+                  </span>
+                </td>
+                <td>{{ event.area_affected }} km²</td>
+                <td>
+                  {% if event.end_date %} Ended {{ event.end_date|date:"F j, Y"
+                  }} {% else %} Active {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p>No wildfire events recorded for this region.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card mb-4">
+      <div class="card-header">
+        <h3 class="card-title mb-0">Current Weather</h3>
+      </div>
+      <div class="card-body">
+        <div id="weather-data">Loading weather data...</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title mb-0">Risk Assessment</h3>
+      </div>
+      <div class="card-body">
+        <div id="risk-assessment">Loading risk assessment...</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    // Fetch weather data
+    fetch(`/weather/api/current/${region.id}/`)
+      .then((response) => response.json())
+      .then((data) => {
+        document.getElementById("weather-data").innerHTML = `
+                <p><strong>Temperature:</strong> ${data.temperature}°C</p>
+                <p><strong>Humidity:</strong> ${data.humidity}%</p>
+                <p><strong>Wind Speed:</strong> ${data.wind_speed} m/s</p>
+                <p><strong>Last Updated:</strong> ${new Date(
+                  data.timestamp
+                ).toLocaleString()}</p>
+            `;
+      })
+      .catch((error) => {
+        document.getElementById("weather-data").innerHTML =
+          "Error loading weather data";
+        console.error("Error:", error);
+      });
+
+    // Fetch risk assessment
+    fetch(`/predictions/api/risk/${region.id}/`)
+      .then((response) => response.json())
+      .then((data) => {
+        const riskLevel = data.risk_level * 100;
+        const riskColor =
+          riskLevel < 25
+            ? "success"
+            : riskLevel < 50
+            ? "warning"
+            : riskLevel < 75
+            ? "danger"
+            : "dark";
+
+        document.getElementById("risk-assessment").innerHTML = `
+                <div class="text-center">
+                    <h4 class="text-${riskColor}">${riskLevel.toFixed(1)}%</h4>
+                    <p>Current Risk Level</p>
+                    <div class="progress">
+                        <div class="progress-bar bg-${riskColor}" 
+                             role="progressbar" 
+                             style="width: ${riskLevel}%" 
+                             aria-valuenow="${riskLevel}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100">
+                        </div>
+                    </div>
+                    <p class="mt-2"><small>Confidence: ${(
+                      data.confidence * 100
+                    ).toFixed(1)}%</small></p>
+                </div>
+            `;
+      })
+      .catch((error) => {
+        document.getElementById("risk-assessment").innerHTML =
+          "Error loading risk assessment";
+        console.error("Error:", error);
+      });
+  });
+</script>
+{% endblock %}

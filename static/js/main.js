@@ -177,4 +177,101 @@ document.addEventListener("DOMContentLoaded", function () {
     const map = initializeMap("map");
     // You can load initial markers here if needed
   }
+
+  // Initialize tooltips
+  var tooltipTriggerList = [].slice.call(
+    document.querySelectorAll('[data-bs-toggle="tooltip"]')
+  );
+  var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl);
+  });
+
+  // Add fade-in animation to dashboard cards
+  const cards = document.querySelectorAll(".dashboard-card");
+  cards.forEach((card, index) => {
+    card.style.animation = `fadeIn 0.5s ease-in forwards ${index * 0.1}s`;
+  });
 });
+
+// API handling functions
+async function fetchWeatherData(regionId) {
+  try {
+    const response = await fetch(`/api/weather/current/${regionId}/`);
+    if (!response.ok) throw new Error("Weather data fetch failed");
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching weather data:", error);
+    throw error;
+  }
+}
+
+async function fetchPredictions(regionId) {
+  try {
+    const response = await fetch(`/api/predictions/${regionId}/`);
+    if (!response.ok) throw new Error("Predictions fetch failed");
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching predictions:", error);
+    throw error;
+  }
+}
+
+// Utility functions
+function formatDate(dateString) {
+  return new Date(dateString).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function getRiskLevelClass(riskLevel) {
+  if (riskLevel < 0.25) return "risk-low";
+  if (riskLevel < 0.5) return "risk-medium";
+  if (riskLevel < 0.75) return "risk-high";
+  return "risk-extreme";
+}
+
+// Error handling
+function handleApiError(error, elementId, message = "An error occurred") {
+  console.error(error);
+  const element = document.getElementById(elementId);
+  if (element) {
+    element.innerHTML = `
+      <div class="alert alert-danger">
+        ${message}
+        <br>
+        <small>${error.message}</small>
+      </div>
+    `;
+  }
+}
+
+// Animation utilities
+function fadeIn(element, duration = 500) {
+  element.style.opacity = 0;
+  element.style.display = "block";
+
+  let start = null;
+  function animate(timestamp) {
+    if (!start) start = timestamp;
+    const progress = timestamp - start;
+    element.style.opacity = Math.min(progress / duration, 1);
+    if (progress < duration) {
+      window.requestAnimationFrame(animate);
+    }
+  }
+  window.requestAnimationFrame(animate);
+}
+
+// Add CSS animation for fade-in effect
+const style = document.createElement("style");
+style.textContent = `
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+`;
+document.head.appendChild(style);

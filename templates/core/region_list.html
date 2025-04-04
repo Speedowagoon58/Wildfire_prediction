@@ -1,0 +1,45 @@
+{% extends 'base.html' %} {% load static %} {% block title %}Regions - Wildfire
+Prediction System{% endblock %} {% block content %}
+<div class="card">
+  <div class="card-header">
+    <h2 class="card-title mb-0">Monitored Regions</h2>
+  </div>
+  <div class="card-body">
+    {% if regions %}
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Location</th>
+            <th>Elevation</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for region in regions %}
+          <tr>
+            <td>{{ region.name }}</td>
+            <td>{{ region.latitude }}, {{ region.longitude }}</td>
+            <td>
+              {% if region.elevation %}{{ region.elevation }} m{% else %}N/A{%
+              endif %}
+            </td>
+            <td>
+              <a
+                href="{% url 'core:region_detail' region.pk %}"
+                class="btn btn-sm btn-primary"
+                >View Details</a
+              >
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p>No regions available.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

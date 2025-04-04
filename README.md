@@ -1,143 +1,82 @@
 # Wildfire Prediction System
 
-A Django-based system for predicting and monitoring wildfire risks using weather data and historical patterns.
+A web-based system that helps predict and monitor wildfire risks across different regions in Morocco. It combines real-time weather data with historical patterns to provide accurate risk assessments.
 
-## Features
+## What It Does
 
-- Real-time weather data integration
-- Historical data analysis
-- Interactive mapping
-- API documentation
-- Monitoring and logging
-- Rate limiting and security features
+- Tracks weather conditions in real-time
+- Analyzes historical data to spot patterns
+- Shows risk levels on an interactive map
+- Provides detailed predictions for each region
+- Updates automatically every 15 minutes
 
-## Prerequisites
+## Getting Started
 
-- Python 3.11+
-- PostgreSQL
-- Redis
-- Docker (optional)
-
-## Local Development Setup
-
-1. Clone the repository:
+1. Clone the repo:
 
    ```bash
-   git clone https://github.com/yourusername/wildfire_prediction.git
+   git clone https://github.com/Speedowagoon58/wildfire_prediction.git
    cd wildfire_prediction
    ```
 
-2. Create and activate a virtual environment:
+2. Set up your environment:
 
    ```bash
    python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-3. Install dependencies:
-
-   ```bash
+   venv\Scripts\activate  # On Windows
    pip install -r requirements.txt
    ```
 
-4. Set up environment variables:
+3. Configure settings:
 
    ```bash
    cp .env.example .env
-   # Edit .env with your configuration
+   # Add your API keys and settings to .env
    ```
 
-5. Run migrations:
-
+4. Start the server:
    ```bash
    python manage.py migrate
-   ```
-
-6. Create a superuser:
-
-   ```bash
-   python manage.py createsuperuser
-   ```
-
-7. Run the development server:
-
-   ```bash
    python manage.py runserver
    ```
 
-## Docker Development Setup
+## Key Features
 
-1. Build and start the containers:
+### Weather Tracking
 
-   ```bash
-   docker-compose up --build
-   ```
+- Temperature
+- Humidity
+- Wind speed and direction
+- Precipitation levels
 
-2. Run migrations:
+### Risk Assessment
 
-   ```bash
-   docker-compose exec web python manage.py migrate
-   ```
+- Low, Medium, High risk levels
+- Real-time updates
+- Historical pattern analysis
+- Geographic risk mapping
 
-3. Create a superuser:
+### Data Management
 
-   ```bash
-   docker-compose exec web python manage.py createsuperuser
-   ```
+- Efficient database design
+- Quick data retrieval
+- Secure data handling
+- Regular backups
 
-## Testing
+## Tech Stack
 
-Run tests with coverage:
+- Django for the backend
+- PostgreSQL for data storage
+- REST APIs for data access
+- Machine learning for predictions
 
-```bash
-pytest --cov=. --cov-report=term-missing
-```
+## Need Help?
 
-## Code Quality
+Open an issue in the GitHub repository or contact me.
 
-The project uses several tools to maintain code quality:
+## Credits
 
-- Black for code formatting
-- isort for import sorting
-- flake8 for linting
-- mypy for type checking
-- bandit for security checks
-
-Run all checks:
-
-```bash
-pre-commit run --all-files
-```
-
-## API Documentation
-
-API documentation is available at `/api/docs/` when running the server.
-
-## Deployment
-
-1. Set up production environment variables
-2. Build and push Docker image
-3. Deploy using your preferred platform (e.g., AWS, GCP, Heroku)
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Support
-
-For support, please open an issue in the GitHub repository or contact the maintainers.
-
-## Acknowledgments
-
-- OpenWeatherMap API for weather data
-- Django framework
-- Leaflet for map visualization
-- All contributors and maintainers
+- Weather data from OpenWeatherMap
+- Built with Django
+- Huge help from AI in all stages
+- Thank you ALX.

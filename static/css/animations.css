@@ -12,12 +12,23 @@
 
 @keyframes slideIn {
   from {
-    transform: translateX(-15px);
     opacity: 0;
+    transform: translateX(-20px);
   }
   to {
-    transform: translateX(0);
     opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 
@@ -39,7 +50,7 @@
     transform: translateY(0);
   }
   50% {
-    transform: translateY(-10px);
+    transform: translateY(-5px);
   }
 }
 
@@ -54,13 +65,16 @@
 
 /* Animation Classes */
 .animate-fade-in {
-  animation: fadeIn 0.6s ease-out forwards;
+  animation: fadeIn 0.5s ease-out forwards;
 }
 
 .animate-slide-in {
-  animation: slideIn 0.4s ease-out forwards;
-  animation-delay: var(--delay, 0s);
-  animation-delay: clamp(0s, var(--delay, 0s), 0.6s);
+  animation: slideIn 0.5s ease-out forwards;
+  animation-delay: calc(var(--delay, 0) * 1s);
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.4s ease-out forwards;
 }
 
 .animate-pulse {
@@ -80,20 +94,20 @@
 
 /* Hover Effects */
 .hover-lift {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .hover-lift:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  transform: translateY(-5px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-.hover-glow {
-  transition: box-shadow 0.3s ease;
+.hover-scale {
+  transition: transform 0.3s ease;
 }
 
-.hover-glow:hover {
-  box-shadow: 0 0 15px rgba(66, 133, 244, 0.3);
+.hover-scale:hover {
+  transform: scale(1.05);
 }
 
 /* Card Animations */
@@ -109,7 +123,7 @@
 
 /* Map Marker Animations */
 .marker-bounce {
-  animation: bounce 1s infinite;
+  animation: bounce 0.5s ease-in-out;
 }
 
 /* Risk Level Indicators */
@@ -191,4 +205,45 @@
 .btn-animate:hover::before {
   width: 300%;
   height: 300%;
+}
+
+/* Loading States */
+.loading-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--background-color) 0%,
+    var(--hover-color) 50%,
+    var(--background-color) 100%
+  );
+  background-size: 2000px 100%;
+  animation: shimmer 2s infinite linear;
+}
+
+/* Transition Classes */
+.transition-all {
+  transition: all 0.3s ease;
+}
+
+.transition-transform {
+  transition: transform 0.3s ease;
+}
+
+.transition-opacity {
+  transition: opacity 0.3s ease;
+}
+
+/* Responsive Animations */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-slide-in,
+  .animate-scale-in,
+  .animate-pulse,
+  .animate-bounce,
+  .marker-bounce,
+  .hover-lift,
+  .hover-scale,
+  .loading-shimmer {
+    animation: none !important;
+    transition: none !important;
+  }
 }

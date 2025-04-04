@@ -3,9 +3,10 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
-from datetime import timedelta
+from datetime import timedelta, datetime
 import random
 import logging
+from django.db.models import Avg
 
 from .models import WildfirePrediction
 from .serializers import WildfirePredictionSerializer
@@ -13,8 +14,39 @@ from .ml_model import WildfirePredictionModel
 from apps.core.models import Region
 from apps.weather.models import WeatherData
 from apps.weather.services import fetch_current_weather
+from .global_risk_factors import (
+    calculate_soil_risk_factor,
+    calculate_vegetation_risk_factor,
+    calculate_climate_risk_multiplier,
+)
 
 logger = logging.getLogger(__name__)
+
+
+def calculate_trend(data_points):
+    """Calculate trend from historical data points."""
+    if not data_points or len(data_points) < 2:
+        return 0.0
+
+    # Simple linear regression
+    n = len(data_points)
+    x = list(range(n))
+    y = [float(point) for point in data_points]
+
+    # Calculate means
+    x_mean = sum(x) / n
+    y_mean = sum(y) / n
+
+    # Calculate slope
+    numerator = sum((x[i] - x_mean) * (y[i] - y_mean) for i in range(n))
+    denominator = sum((x[i] - x_mean) ** 2 for i in range(n))
+
+    if denominator == 0:
+        return 0.0
+
+    slope = numerator / denominator
+    return slope
+
 
 # Instantiate the model (consider how this is managed in a production environment - singleton?)
 # This will attempt to load the pre-trained model when the Django process starts.
@@ -22,187 +54,199 @@ logger = logging.getLogger(__name__)
 
 
 def analyze_historical_patterns(region):
-    """Analyze historical weather patterns and their correlation with wildfire events."""
-    # Get weather data from the last 30 days
-    thirty_days_ago = timezone.now() - timedelta(days=30)
-    historical_data = WeatherData.objects.filter(
-        region=region, timestamp__gte=thirty_days_ago
-    ).order_by("timestamp")
+    """Analyze historical weather patterns for a region, considering seasonal variations."""
+    try:
+        # Get historical weather data for the past 30 days
+        end_date = timezone.now()
+        start_date = end_date - timedelta(days=30)
 
-    # Calculate averages and trends
-    if not historical_data.exists():
+        historical_data = WeatherData.objects.filter(
+            region=region, timestamp__range=(start_date, end_date)
+        ).order_by("timestamp")
+
+        if not historical_data:
+            return None
+
+        # Extract data points
+        temperatures = [data.temperature for data in historical_data]
+        humidity_values = [data.humidity for data in historical_data]
+        wind_speeds = [data.wind_speed for data in historical_data]
+        precipitation_values = [data.precipitation for data in historical_data]
+
+        # Calculate trends
+        temp_trend = calculate_trend(temperatures)
+        humidity_trend = calculate_trend(humidity_values)
+        wind_trend = calculate_trend(wind_speeds)
+        precip_trend = calculate_trend(precipitation_values)
+
+        # Calculate averages
+        avg_temp = sum(temperatures) / len(temperatures) if temperatures else 0
+        avg_humidity = (
+            sum(humidity_values) / len(humidity_values) if humidity_values else 0
+        )
+        avg_wind = sum(wind_speeds) / len(wind_speeds) if wind_speeds else 0
+        avg_precip = (
+            sum(precipitation_values) / len(precipitation_values)
+            if precipitation_values
+            else 0
+        )
+
+        # Get current month for seasonal analysis
+        current_month = timezone.now().month
+        season = get_season(current_month)
+
+        return {
+            "temperature": {
+                "average": round(avg_temp, 2),
+                "trend": round(temp_trend, 4),
+                "season": season,
+            },
+            "humidity": {
+                "average": round(avg_humidity, 2),
+                "trend": round(humidity_trend, 4),
+            },
+            "wind_speed": {
+                "average": round(avg_wind, 2),
+                "trend": round(wind_trend, 4),
+            },
+            "precipitation": {
+                "average": round(avg_precip, 2),
+                "trend": round(precip_trend, 4),
+            },
+        }
+
+    except Exception as e:
+        logger.error(f"Error analyzing historical patterns: {str(e)}")
         return None
 
-    # Calculate average values
-    avg_temperature = sum(data.temperature for data in historical_data) / len(
-        historical_data
-    )
-    avg_humidity = sum(data.humidity for data in historical_data) / len(historical_data)
-    avg_wind_speed = sum(data.wind_speed for data in historical_data) / len(
-        historical_data
-    )
-    avg_precipitation = sum(data.precipitation for data in historical_data) / len(
-        historical_data
-    )
 
-    # Calculate trends (simple linear regression)
-    temps = [(data.timestamp, data.temperature) for data in historical_data]
-    humidities = [(data.timestamp, data.humidity) for data in historical_data]
-
-    # Calculate temperature trend
-    if len(temps) > 1:
-        temp_trend = (temps[-1][1] - temps[0][1]) / (
-            temps[-1][0] - temps[0][0]
-        ).total_seconds()
+def get_season(month):
+    """Determine the season based on the month."""
+    if month in [12, 1, 2]:
+        return "winter"
+    elif month in [3, 4, 5]:
+        return "spring"
+    elif month in [6, 7, 8]:
+        return "summer"
     else:
-        temp_trend = 0
-
-    # Calculate humidity trend
-    if len(humidities) > 1:
-        humidity_trend = (humidities[-1][1] - humidities[0][1]) / (
-            humidities[-1][0] - humidities[0][0]
-        ).total_seconds()
-    else:
-        humidity_trend = 0
-
-    # Calculate drought index (simplified)
-    total_precipitation = sum(data.precipitation for data in historical_data)
-    potential_evaporation = sum(
-        data.temperature * 0.5 for data in historical_data
-    )  # Simplified calculation
-    drought_index = (
-        potential_evaporation - total_precipitation
-    ) / 30  # Average daily drought index
-
-    return {
-        "avg_temperature": avg_temperature,
-        "avg_humidity": avg_humidity,
-        "avg_wind_speed": avg_wind_speed,
-        "avg_precipitation": avg_precipitation,
-        "temp_trend": temp_trend,
-        "humidity_trend": humidity_trend,
-        "drought_index": drought_index,
-        "data_points": len(historical_data),
-    }
+        return "autumn"
 
 
-def calculate_wildfire_risk(current_weather, historical_patterns, region):
-    """Calculate wildfire risk based on current weather, historical patterns, and region characteristics."""
-    if not current_weather or not historical_patterns:
-        return None
-
+def calculate_wildfire_risk(weather_data, region):
+    """
+    Calculate wildfire risk based on weather data, region characteristics, and global patterns
+    """
     # Base risk factors
-    risk_score = 0
-    factors = []
-
-    # Temperature analysis
-    temp_risk = 0
-    if current_weather.temperature > 30:  # High temperature threshold
-        temp_risk += 2
-        factors.append("high temperature")
-    elif current_weather.temperature > 25:
-        temp_risk += 1
-        factors.append("elevated temperature")
-
-    # Compare with historical average
-    if current_weather.temperature > historical_patterns["avg_temperature"] + 5:
-        temp_risk += 1
-        factors.append("temperature significantly above average")
-
-    # Humidity analysis
+    temperature_risk = 0
     humidity_risk = 0
-    if current_weather.humidity < 30:  # Low humidity threshold
-        humidity_risk += 2
-        factors.append("low humidity")
-    elif current_weather.humidity < 40:
-        humidity_risk += 1
-        factors.append("reduced humidity")
-
-    # Compare with historical average
-    if current_weather.humidity < historical_patterns["avg_humidity"] - 10:
-        humidity_risk += 1
-        factors.append("humidity significantly below average")
-
-    # Wind speed analysis
     wind_risk = 0
-    if current_weather.wind_speed > 8:  # High wind threshold
-        wind_risk += 2
-        factors.append("strong winds")
-    elif current_weather.wind_speed > 5:
-        wind_risk += 1
-        factors.append("moderate winds")
+    precipitation_risk = 0
 
-    # Precipitation analysis
-    precip_risk = 0
-    if current_weather.precipitation == 0:
-        precip_risk += 1
-        factors.append("no recent precipitation")
-    if historical_patterns["avg_precipitation"] < 5:  # Low precipitation threshold
-        precip_risk += 1
-        factors.append("low average precipitation")
+    # Temperature risk (higher risk with higher temperatures)
+    if weather_data.temperature > 35:
+        temperature_risk = 1.0
+    elif weather_data.temperature > 30:
+        temperature_risk = 0.8
+    elif weather_data.temperature > 25:
+        temperature_risk = 0.6
+    elif weather_data.temperature > 20:
+        temperature_risk = 0.4
+    else:
+        temperature_risk = 0.2
 
-    # Historical trend analysis
-    trend_risk = 0
-    if historical_patterns["temp_trend"] > 0:  # Increasing temperature trend
-        trend_risk += 1
-        factors.append("rising temperature trend")
-    if historical_patterns["humidity_trend"] < 0:  # Decreasing humidity trend
-        trend_risk += 1
-        factors.append("decreasing humidity trend")
+    # Humidity risk (higher risk with lower humidity)
+    if weather_data.humidity < 30:
+        humidity_risk = 1.0
+    elif weather_data.humidity < 40:
+        humidity_risk = 0.8
+    elif weather_data.humidity < 50:
+        humidity_risk = 0.6
+    elif weather_data.humidity < 60:
+        humidity_risk = 0.4
+    else:
+        humidity_risk = 0.2
 
-    # Drought analysis
-    drought_risk = 0
-    if historical_patterns["drought_index"] > 2:  # Severe drought
-        drought_risk += 2
-        factors.append("severe drought conditions")
-    elif historical_patterns["drought_index"] > 1:  # Moderate drought
-        drought_risk += 1
-        factors.append("moderate drought conditions")
+    # Wind risk (higher risk with stronger winds)
+    if weather_data.wind_speed > 30:
+        wind_risk = 1.0
+    elif weather_data.wind_speed > 20:
+        wind_risk = 0.8
+    elif weather_data.wind_speed > 10:
+        wind_risk = 0.6
+    elif weather_data.wind_speed > 5:
+        wind_risk = 0.4
+    else:
+        wind_risk = 0.2
 
-    # Topographical risk (based on region elevation)
-    topo_risk = 0
-    if region.elevation > 2000:  # High elevation
-        topo_risk += 1
-        factors.append("high elevation terrain")
-    elif region.elevation > 1000:  # Moderate elevation
-        topo_risk += 0.5
-        factors.append("moderate elevation terrain")
+    # Precipitation risk (higher risk with less precipitation)
+    if weather_data.precipitation == 0:
+        precipitation_risk = 1.0
+    elif weather_data.precipitation < 5:
+        precipitation_risk = 0.8
+    elif weather_data.precipitation < 10:
+        precipitation_risk = 0.6
+    elif weather_data.precipitation < 20:
+        precipitation_risk = 0.4
+    else:
+        precipitation_risk = 0.2
 
-    # Calculate total risk score
-    risk_score = (
-        temp_risk
-        + humidity_risk
-        + wind_risk
-        + precip_risk
-        + trend_risk
-        + drought_risk
-        + topo_risk
+    # Calculate base risk score (0-100)
+    base_risk = (
+        (temperature_risk * 0.3)
+        + (humidity_risk * 0.25)
+        + (wind_risk * 0.25)
+        + (precipitation_risk * 0.2)
+    ) * 100
+
+    # Get current month for seasonal calculations
+    current_month = datetime.now().month
+
+    # Apply soil type factor using global patterns
+    soil_factor = 1.0
+    if region.soil_type:
+        soil_factor = calculate_soil_risk_factor(
+            region.soil_type,
+            current_month,
+            drought_index=getattr(weather_data, "drought_index", None),
+        )
+
+    # Apply vegetation density factor using global patterns
+    vegetation_factor = calculate_vegetation_risk_factor(region.vegetation_density)
+
+    # Apply climate zone factor
+    climate_factor = calculate_climate_risk_multiplier(
+        current_month, climate_zone=getattr(region, "climate_zone", "mediterranean")
     )
 
-    # Determine risk level
-    if risk_score >= 10:
+    # Calculate final risk score with all global factors
+    final_risk = base_risk * soil_factor * vegetation_factor * climate_factor
+
+    # Cap the risk score at 100
+    final_risk = min(final_risk, 100)
+
+    # Determine risk level with more granular thresholds
+    if final_risk >= 80:
         risk_level = WildfirePrediction.EXTREME
-        risk_color = "danger"
-    elif risk_score >= 7:
+    elif final_risk >= 60:
         risk_level = WildfirePrediction.HIGH
-        risk_color = "warning"
-    elif risk_score >= 4:
+    elif final_risk >= 40:
         risk_level = WildfirePrediction.MEDIUM
-        risk_color = "info"
     else:
         risk_level = WildfirePrediction.LOW
-        risk_color = "success"
-
-    # Calculate confidence based on data points and factors considered
-    confidence = min(
-        0.95, 0.7 + (historical_patterns["data_points"] / 100) + (len(factors) * 0.05)
-    )
 
     return {
+        "risk_score": round(final_risk, 2),
         "risk_level": risk_level,
-        "risk_color": risk_color,
-        "confidence": confidence,
-        "factors": factors,
+        "factors": {
+            "temperature": round(temperature_risk * 100, 2),
+            "humidity": round(humidity_risk * 100, 2),
+            "wind": round(wind_risk * 100, 2),
+            "precipitation": round(precipitation_risk * 100, 2),
+            "soil_type": round(soil_factor * 100, 2),
+            "vegetation": round(vegetation_factor * 100, 2),
+            "climate": round(climate_factor * 100, 2),
+        },
+        "confidence": 0.85,  # Updated confidence with global factors
     }
 
 
@@ -213,27 +257,32 @@ def generate_prediction_explanation(
     if not prediction or not current_weather or not historical_patterns:
         return "Insufficient data for prediction"
 
+    # Helper function to get weather attribute
+    def get_weather_value(weather, attr):
+        if hasattr(weather, attr):
+            return getattr(weather, attr)
+        return weather[attr]
+
     explanation_parts = []
 
     # Current conditions
     explanation_parts.append(
-        f"Current conditions: Temperature {current_weather.temperature}°C, "
-        f"Humidity {current_weather.humidity}%, "
-        f"Wind Speed {current_weather.wind_speed} m/s"
+        f"Current conditions: Temperature {get_weather_value(current_weather, 'temperature')}°C, "
+        f"Humidity {get_weather_value(current_weather, 'humidity')}%, "
+        f"Wind Speed {get_weather_value(current_weather, 'wind_speed')} m/s"
     )
 
     # Historical context
     explanation_parts.append(
-        f"Historical averages: Temperature {historical_patterns['avg_temperature']:.1f}°C, "
-        f"Humidity {historical_patterns['avg_humidity']:.1f}%"
+        f"Historical averages: Temperature {historical_patterns['temperature']['average']:.1f}°C, "
+        f"Humidity {historical_patterns['humidity']['average']:.1f}%"
     )
 
     # Drought conditions
-    if historical_patterns["drought_index"] > 1:
-        explanation_parts.append(
-            f"Drought index: {historical_patterns['drought_index']:.1f} "
-            f"({'severe' if historical_patterns['drought_index'] > 2 else 'moderate'} drought)"
-        )
+    if historical_patterns["temperature"]["trend"] > 0:
+        explanation_parts.append("Temperature has been trending upward")
+    if historical_patterns["humidity"]["trend"] < 0:
+        explanation_parts.append("Humidity has been trending downward")
 
     # Topographical context
     explanation_parts.append(f"Region elevation: {region.elevation}m")
@@ -243,9 +292,9 @@ def generate_prediction_explanation(
         explanation_parts.append("Risk factors: " + ", ".join(prediction["factors"]))
 
     # Trend information
-    if historical_patterns["temp_trend"] > 0:
+    if historical_patterns["temperature"]["trend"] > 0:
         explanation_parts.append("Temperature has been trending upward")
-    if historical_patterns["humidity_trend"] < 0:
+    if historical_patterns["humidity"]["trend"] < 0:
         explanation_parts.append("Humidity has been trending downward")
 
     return ". ".join(explanation_parts)
@@ -287,9 +336,7 @@ class PredictionViewSet(viewsets.ViewSet):
             )
 
         # Calculate risk
-        risk_prediction = calculate_wildfire_risk(
-            current_weather, historical_patterns, region
-        )
+        risk_prediction = calculate_wildfire_risk(current_weather, region)
         if not risk_prediction:
             return Response(
                 {"error": "Could not calculate risk prediction"},
@@ -382,9 +429,7 @@ class PredictionViewSet(viewsets.ViewSet):
                     continue
 
                 # Calculate risk
-                risk_prediction = calculate_wildfire_risk(
-                    current_weather, historical_patterns, region
-                )
+                risk_prediction = calculate_wildfire_risk(current_weather, region)
 
                 if not risk_prediction:
                     predictions.append(
@@ -408,10 +453,26 @@ class PredictionViewSet(viewsets.ViewSet):
                     confidence=risk_prediction["confidence"],
                     features_used={
                         "current_weather": {
-                            "temperature": current_weather.temperature,
-                            "humidity": current_weather.humidity,
-                            "wind_speed": current_weather.wind_speed,
-                            "precipitation": current_weather.precipitation,
+                            "temperature": (
+                                current_weather.temperature
+                                if hasattr(current_weather, "temperature")
+                                else current_weather["temperature"]
+                            ),
+                            "humidity": (
+                                current_weather.humidity
+                                if hasattr(current_weather, "humidity")
+                                else current_weather["humidity"]
+                            ),
+                            "wind_speed": (
+                                current_weather.wind_speed
+                                if hasattr(current_weather, "wind_speed")
+                                else current_weather["wind_speed"]
+                            ),
+                            "precipitation": (
+                                current_weather.precipitation
+                                if hasattr(current_weather, "precipitation")
+                                else current_weather["precipitation"]
+                            ),
                         },
                         "historical_patterns": historical_patterns,
                     },
@@ -551,9 +612,7 @@ def dashboard(request):
                 continue
 
             # Calculate risk
-            risk_prediction = calculate_wildfire_risk(
-                current_weather, historical_patterns, region
-            )
+            risk_prediction = calculate_wildfire_risk(current_weather, region)
 
             if not risk_prediction:
                 predictions.append(
@@ -577,10 +636,26 @@ def dashboard(request):
                 confidence=risk_prediction["confidence"],
                 features_used={
                     "current_weather": {
-                        "temperature": current_weather.temperature,
-                        "humidity": current_weather.humidity,
-                        "wind_speed": current_weather.wind_speed,
-                        "precipitation": current_weather.precipitation,
+                        "temperature": (
+                            current_weather.temperature
+                            if hasattr(current_weather, "temperature")
+                            else current_weather["temperature"]
+                        ),
+                        "humidity": (
+                            current_weather.humidity
+                            if hasattr(current_weather, "humidity")
+                            else current_weather["humidity"]
+                        ),
+                        "wind_speed": (
+                            current_weather.wind_speed
+                            if hasattr(current_weather, "wind_speed")
+                            else current_weather["wind_speed"]
+                        ),
+                        "precipitation": (
+                            current_weather.precipitation
+                            if hasattr(current_weather, "precipitation")
+                            else current_weather["precipitation"]
+                        ),
                     },
                     "historical_patterns": historical_patterns,
                 },

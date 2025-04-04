@@ -122,5 +122,13 @@ SPECTACULAR_SETTINGS = {
 }
 
 # OpenWeatherMap API Settings
-OPENWEATHERMAP_API_KEY = os.getenv("OPENWEATHERMAP_API_KEY")
+OPENWEATHERMAP_API_KEY = os.getenv("OPENWEATHERMAP_API_KEY", "")
 OPENWEATHERMAP_API_URL = "https://api.openweathermap.org/data/2.5/weather"
+
+# NOAA Climate Data Online API Configuration
+NOAA_API_KEY = os.getenv("NOAA_API_KEY", "")
+NOAA_API_URL = "https://www.ncdc.noaa.gov/cdo-web/api/v2"
+
+# DMN (Moroccan Meteorological Service) API Configuration
+DMN_API_KEY = os.getenv("DMN_API_KEY", "")
+DMN_API_URL = "http://www.marocmeteo.ma/api"

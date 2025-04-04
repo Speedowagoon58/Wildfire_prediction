@@ -137,6 +137,48 @@ class WeatherViewSet(viewsets.ModelViewSet):
             )
             return Response({"error": "An unexpected error occurred"}, status=500)
 
+    @action(detail=False, methods=["get"])
+    def historical_data(self, request):
+        """
+        Fetch historical weather data for a region within a date range.
+        """
+        region_id = request.query_params.get("region_id")
+        start_date = request.query_params.get("start_date")
+        end_date = request.query_params.get("end_date")
+
+        if not all([region_id, start_date, end_date]):
+            return Response(
+                {"error": "Region ID, start date, and end date are required"},
+                status=400,
+            )
+
+        try:
+            region = Region.objects.get(id=region_id)
+            start_date = datetime.strptime(start_date, "%Y-%m-%d")
+            end_date = datetime.strptime(end_date, "%Y-%m-%d")
+
+            # Fetch historical data from NOAA
+            historical_data = fetch_historical_weather(region, start_date, end_date)
+
+            if not historical_data:
+                return Response(
+                    {"error": "No historical data available for the specified period"},
+                    status=404,
+                )
+
+            return Response(historical_data)
+
+        except Region.DoesNotExist:
+            return Response({"error": "Region not found"}, status=404)
+        except ValueError:
+            return Response(
+                {"error": "Invalid date format. Use YYYY-MM-DD"}, status=400
+            )
+        except Exception as e:
+            return Response(
+                {"error": f"Error fetching historical data: {str(e)}"}, status=500
+            )
+
 
 def dashboard(request):
     regions = Region.objects.all()

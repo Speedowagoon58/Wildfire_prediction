@@ -3,13 +3,16 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
+from datetime import timedelta
+import random
+import logging
 
 from .models import WildfirePrediction
 from .serializers import WildfirePredictionSerializer
 from .ml_model import WildfirePredictionModel
 from apps.core.models import Region
 from apps.weather.models import WeatherData
-import logging
+from apps.weather.services import fetch_current_weather
 
 logger = logging.getLogger(__name__)
 
@@ -18,115 +21,543 @@ logger = logging.getLogger(__name__)
 # prediction_model = WildfirePredictionModel() # DEFER INSTANTIATION
 
 
-class PredictionViewSet(viewsets.ReadOnlyModelViewSet):
-    """ViewSet to view wildfire predictions."""
+def analyze_historical_patterns(region):
+    """Analyze historical weather patterns and their correlation with wildfire events."""
+    # Get weather data from the last 30 days
+    thirty_days_ago = timezone.now() - timedelta(days=30)
+    historical_data = WeatherData.objects.filter(
+        region=region, timestamp__gte=thirty_days_ago
+    ).order_by("timestamp")
 
-    queryset = WildfirePrediction.objects.all()
-    serializer_class = WildfirePredictionSerializer
-    _prediction_model_instance = None  # Class variable to hold the singleton instance
+    # Calculate averages and trends
+    if not historical_data.exists():
+        return None
 
-    @classmethod
-    def get_prediction_model(cls):
-        """Lazy loads the prediction model as a singleton."""
-        if cls._prediction_model_instance is None:
-            print(
-                "Instantiating WildfirePredictionModel..."
-            )  # Add print statement for debugging
-            cls._prediction_model_instance = WildfirePredictionModel()
-        return cls._prediction_model_instance
+    # Calculate average values
+    avg_temperature = sum(data.temperature for data in historical_data) / len(
+        historical_data
+    )
+    avg_humidity = sum(data.humidity for data in historical_data) / len(historical_data)
+    avg_wind_speed = sum(data.wind_speed for data in historical_data) / len(
+        historical_data
+    )
+    avg_precipitation = sum(data.precipitation for data in historical_data) / len(
+        historical_data
+    )
 
-    @action(detail=False, methods=["post"], url_path="predict-for-region")
+    # Calculate trends (simple linear regression)
+    temps = [(data.timestamp, data.temperature) for data in historical_data]
+    humidities = [(data.timestamp, data.humidity) for data in historical_data]
+
+    # Calculate temperature trend
+    if len(temps) > 1:
+        temp_trend = (temps[-1][1] - temps[0][1]) / (
+            temps[-1][0] - temps[0][0]
+        ).total_seconds()
+    else:
+        temp_trend = 0
+
+    # Calculate humidity trend
+    if len(humidities) > 1:
+        humidity_trend = (humidities[-1][1] - humidities[0][1]) / (
+            humidities[-1][0] - humidities[0][0]
+        ).total_seconds()
+    else:
+        humidity_trend = 0
+
+    # Calculate drought index (simplified)
+    total_precipitation = sum(data.precipitation for data in historical_data)
+    potential_evaporation = sum(
+        data.temperature * 0.5 for data in historical_data
+    )  # Simplified calculation
+    drought_index = (
+        potential_evaporation - total_precipitation
+    ) / 30  # Average daily drought index
+
+    return {
+        "avg_temperature": avg_temperature,
+        "avg_humidity": avg_humidity,
+        "avg_wind_speed": avg_wind_speed,
+        "avg_precipitation": avg_precipitation,
+        "temp_trend": temp_trend,
+        "humidity_trend": humidity_trend,
+        "drought_index": drought_index,
+        "data_points": len(historical_data),
+    }
+
+
+def calculate_wildfire_risk(current_weather, historical_patterns, region):
+    """Calculate wildfire risk based on current weather, historical patterns, and region characteristics."""
+    if not current_weather or not historical_patterns:
+        return None
+
+    # Base risk factors
+    risk_score = 0
+    factors = []
+
+    # Temperature analysis
+    temp_risk = 0
+    if current_weather.temperature > 30:  # High temperature threshold
+        temp_risk += 2
+        factors.append("high temperature")
+    elif current_weather.temperature > 25:
+        temp_risk += 1
+        factors.append("elevated temperature")
+
+    # Compare with historical average
+    if current_weather.temperature > historical_patterns["avg_temperature"] + 5:
+        temp_risk += 1
+        factors.append("temperature significantly above average")
+
+    # Humidity analysis
+    humidity_risk = 0
+    if current_weather.humidity < 30:  # Low humidity threshold
+        humidity_risk += 2
+        factors.append("low humidity")
+    elif current_weather.humidity < 40:
+        humidity_risk += 1
+        factors.append("reduced humidity")
+
+    # Compare with historical average
+    if current_weather.humidity < historical_patterns["avg_humidity"] - 10:
+        humidity_risk += 1
+        factors.append("humidity significantly below average")
+
+    # Wind speed analysis
+    wind_risk = 0
+    if current_weather.wind_speed > 8:  # High wind threshold
+        wind_risk += 2
+        factors.append("strong winds")
+    elif current_weather.wind_speed > 5:
+        wind_risk += 1
+        factors.append("moderate winds")
+
+    # Precipitation analysis
+    precip_risk = 0
+    if current_weather.precipitation == 0:
+        precip_risk += 1
+        factors.append("no recent precipitation")
+    if historical_patterns["avg_precipitation"] < 5:  # Low precipitation threshold
+        precip_risk += 1
+        factors.append("low average precipitation")
+
+    # Historical trend analysis
+    trend_risk = 0
+    if historical_patterns["temp_trend"] > 0:  # Increasing temperature trend
+        trend_risk += 1
+        factors.append("rising temperature trend")
+    if historical_patterns["humidity_trend"] < 0:  # Decreasing humidity trend
+        trend_risk += 1
+        factors.append("decreasing humidity trend")
+
+    # Drought analysis
+    drought_risk = 0
+    if historical_patterns["drought_index"] > 2:  # Severe drought
+        drought_risk += 2
+        factors.append("severe drought conditions")
+    elif historical_patterns["drought_index"] > 1:  # Moderate drought
+        drought_risk += 1
+        factors.append("moderate drought conditions")
+
+    # Topographical risk (based on region elevation)
+    topo_risk = 0
+    if region.elevation > 2000:  # High elevation
+        topo_risk += 1
+        factors.append("high elevation terrain")
+    elif region.elevation > 1000:  # Moderate elevation
+        topo_risk += 0.5
+        factors.append("moderate elevation terrain")
+
+    # Calculate total risk score
+    risk_score = (
+        temp_risk
+        + humidity_risk
+        + wind_risk
+        + precip_risk
+        + trend_risk
+        + drought_risk
+        + topo_risk
+    )
+
+    # Determine risk level
+    if risk_score >= 10:
+        risk_level = WildfirePrediction.EXTREME
+        risk_color = "danger"
+    elif risk_score >= 7:
+        risk_level = WildfirePrediction.HIGH
+        risk_color = "warning"
+    elif risk_score >= 4:
+        risk_level = WildfirePrediction.MEDIUM
+        risk_color = "info"
+    else:
+        risk_level = WildfirePrediction.LOW
+        risk_color = "success"
+
+    # Calculate confidence based on data points and factors considered
+    confidence = min(
+        0.95, 0.7 + (historical_patterns["data_points"] / 100) + (len(factors) * 0.05)
+    )
+
+    return {
+        "risk_level": risk_level,
+        "risk_color": risk_color,
+        "confidence": confidence,
+        "factors": factors,
+    }
+
+
+def generate_prediction_explanation(
+    prediction, current_weather, historical_patterns, region
+):
+    """Generate a detailed explanation of the prediction."""
+    if not prediction or not current_weather or not historical_patterns:
+        return "Insufficient data for prediction"
+
+    explanation_parts = []
+
+    # Current conditions
+    explanation_parts.append(
+        f"Current conditions: Temperature {current_weather.temperature}°C, "
+        f"Humidity {current_weather.humidity}%, "
+        f"Wind Speed {current_weather.wind_speed} m/s"
+    )
+
+    # Historical context
+    explanation_parts.append(
+        f"Historical averages: Temperature {historical_patterns['avg_temperature']:.1f}°C, "
+        f"Humidity {historical_patterns['avg_humidity']:.1f}%"
+    )
+
+    # Drought conditions
+    if historical_patterns["drought_index"] > 1:
+        explanation_parts.append(
+            f"Drought index: {historical_patterns['drought_index']:.1f} "
+            f"({'severe' if historical_patterns['drought_index'] > 2 else 'moderate'} drought)"
+        )
+
+    # Topographical context
+    explanation_parts.append(f"Region elevation: {region.elevation}m")
+
+    # Risk factors
+    if prediction["factors"]:
+        explanation_parts.append("Risk factors: " + ", ".join(prediction["factors"]))
+
+    # Trend information
+    if historical_patterns["temp_trend"] > 0:
+        explanation_parts.append("Temperature has been trending upward")
+    if historical_patterns["humidity_trend"] < 0:
+        explanation_parts.append("Humidity has been trending downward")
+
+    return ". ".join(explanation_parts)
+
+
+class PredictionViewSet(viewsets.ViewSet):
+    @action(detail=False, methods=["post"])
     def predict_for_region(self, request):
-        """
-        Triggers a wildfire risk prediction for a given region based on the latest weather data.
-        Expects {"region_id": <id>} in the request body.
-        """
-        # Get the model instance lazily
-        model = self.get_prediction_model()
-
         region_id = request.data.get("region_id")
         if not region_id:
             return Response(
                 {"error": "Region ID is required"}, status=status.HTTP_400_BAD_REQUEST
             )
 
-        region = get_object_or_404(Region, pk=region_id)
-
-        # 1. Fetch latest relevant weather data for the region
-        #    For simplicity, using the very latest record. A real model might need a sequence.
         try:
-            latest_weather = WeatherData.objects.filter(region=region).latest(
-                "timestamp"
-            )
-        except WeatherData.DoesNotExist:
-            logger.warning(
-                f"No weather data found for region {region_id} to make prediction."
-            )
+            region = Region.objects.get(id=region_id)
+        except Region.DoesNotExist:
             return Response(
-                {"error": "Insufficient weather data for prediction"},
+                {"error": "Region not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Get current weather data
+        current_weather = (
+            WeatherData.objects.filter(region=region).order_by("-timestamp").first()
+        )
+
+        if not current_weather:
+            return Response(
+                {"error": "No weather data available for the region"},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # 2. Prepare features
-        try:
-            features = model.prepare_features(
-                latest_weather
-            )  # Use the local 'model' instance
-        except Exception as e:
-            logger.error(f"Error preparing features for region {region_id}: {e}")
+        # Analyze historical patterns
+        historical_patterns = analyze_historical_patterns(region)
+        if not historical_patterns:
             return Response(
-                {"error": "Error preparing features for prediction"},
+                {"error": "Insufficient historical data for prediction"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Calculate risk
+        risk_prediction = calculate_wildfire_risk(
+            current_weather, historical_patterns, region
+        )
+        if not risk_prediction:
+            return Response(
+                {"error": "Could not calculate risk prediction"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        # 3. Get prediction
-        risk_prob, confidence = model.predict(
-            features
-        )  # Use the local 'model' instance
+        # Create prediction record
+        prediction = WildfirePrediction.objects.create(
+            region=region,
+            prediction_date=timezone.now(),
+            risk_level=risk_prediction["risk_level"],
+            confidence=risk_prediction["confidence"],
+            features_used={
+                "current_weather": {
+                    "temperature": current_weather.temperature,
+                    "humidity": current_weather.humidity,
+                    "wind_speed": current_weather.wind_speed,
+                    "precipitation": current_weather.precipitation,
+                },
+                "historical_patterns": historical_patterns,
+            },
+            model_version="1.0",
+        )
 
-        if risk_prob is None or confidence is None:
-            logger.error(
-                f"Prediction failed for region {region_id}. Model might not be ready or an error occurred."
+        return Response(
+            {
+                "prediction_id": prediction.id,
+                "risk_level": prediction.get_risk_level_display(),
+                "confidence": prediction.confidence,
+                "explanation": generate_prediction_explanation(
+                    risk_prediction, current_weather, historical_patterns, region
+                ),
+            }
+        )
+
+    def dashboard(self, request):
+        regions = Region.objects.all()
+        predictions = []
+
+        for region in regions:
+            try:
+                # Get or fetch current weather data
+                current_weather = (
+                    WeatherData.objects.filter(region=region)
+                    .order_by("-timestamp")
+                    .first()
+                )
+
+                # If no recent weather data (within last hour) or no weather data at all
+                if (
+                    not current_weather
+                    or (timezone.now() - current_weather.timestamp).total_seconds()
+                    > 3600
+                ):
+                    current_weather = fetch_current_weather(region)
+
+                if not current_weather:
+                    predictions.append(
+                        {
+                            "region": region,
+                            "prediction": None,
+                            "risk_level": "No Data",
+                            "risk_color": "secondary",
+                            "confidence": "N/A",
+                            "timestamp": "Weather data unavailable",
+                            "explanation": "Unable to fetch current weather data. Please check the weather service or API key.",
+                        }
+                    )
+                    continue
+
+                # Analyze historical patterns
+                historical_patterns = analyze_historical_patterns(region)
+                if not historical_patterns:
+                    predictions.append(
+                        {
+                            "region": region,
+                            "prediction": None,
+                            "risk_level": "No Data",
+                            "risk_color": "secondary",
+                            "confidence": "N/A",
+                            "timestamp": "Insufficient historical data",
+                            "explanation": "Not enough historical weather data available for prediction.",
+                        }
+                    )
+                    continue
+
+                # Calculate risk
+                risk_prediction = calculate_wildfire_risk(
+                    current_weather, historical_patterns, region
+                )
+
+                if not risk_prediction:
+                    predictions.append(
+                        {
+                            "region": region,
+                            "prediction": None,
+                            "risk_level": "Error",
+                            "risk_color": "secondary",
+                            "confidence": "N/A",
+                            "timestamp": "Error calculating risk",
+                            "explanation": "An error occurred while calculating the risk prediction.",
+                        }
+                    )
+                    continue
+
+                # Create a new prediction record
+                prediction = WildfirePrediction.objects.create(
+                    region=region,
+                    prediction_date=timezone.now(),
+                    risk_level=risk_prediction["risk_level"],
+                    confidence=risk_prediction["confidence"],
+                    features_used={
+                        "current_weather": {
+                            "temperature": current_weather.temperature,
+                            "humidity": current_weather.humidity,
+                            "wind_speed": current_weather.wind_speed,
+                            "precipitation": current_weather.precipitation,
+                        },
+                        "historical_patterns": historical_patterns,
+                    },
+                    model_version="1.0",
+                )
+
+                predictions.append(
+                    {
+                        "region": region,
+                        "prediction": prediction,
+                        "risk_level": risk_prediction["risk_level"],
+                        "risk_color": risk_prediction["risk_color"],
+                        "confidence": f"{risk_prediction['confidence'] * 100:.1f}%",
+                        "timestamp": timezone.now().strftime("%Y-%m-%d %H:%M"),
+                        "explanation": generate_prediction_explanation(
+                            risk_prediction,
+                            current_weather,
+                            historical_patterns,
+                            region,
+                        ),
+                    }
+                )
+
+            except Exception as e:
+                logger.error(
+                    f"Error processing prediction for region {region.name}: {str(e)}"
+                )
+                predictions.append(
+                    {
+                        "region": region,
+                        "prediction": None,
+                        "risk_level": "Error",
+                        "risk_color": "secondary",
+                        "confidence": "N/A",
+                        "timestamp": "Error processing prediction",
+                        "explanation": f"An unexpected error occurred: {str(e)}",
+                    }
+                )
+
+        return render(
+            request,
+            "predictions/dashboard.html",
+            {"predictions": predictions, "regions": regions},
+        )
+
+
+def generate_test_predictions():
+    """Generate test predictions for all regions if none exist."""
+    regions = Region.objects.all()
+    for region in regions:
+        if not WildfirePrediction.objects.filter(region=region).exists():
+            # Generate a random risk level and confidence
+            risk_level = random.choice(
+                [
+                    WildfirePrediction.LOW,
+                    WildfirePrediction.MEDIUM,
+                    WildfirePrediction.HIGH,
+                    WildfirePrediction.EXTREME,
+                ]
             )
-            return Response(
-                {"error": "Prediction generation failed"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            confidence = round(random.uniform(0.6, 0.95), 2)
 
-        # 4. Convert probability to risk level
-        #    (This threshold logic is illustrative and needs tuning based on model output)
-        if risk_prob < 0.25:
-            risk_level = WildfirePrediction.LOW
-        elif risk_prob < 0.5:
-            risk_level = WildfirePrediction.MEDIUM
-        elif risk_prob < 0.75:
-            risk_level = WildfirePrediction.HIGH
-        else:
-            risk_level = WildfirePrediction.EXTREME
-
-        # 5. Save the prediction
-        #    Using update_or_create to avoid duplicate predictions for the exact same time?
-        #    Or maybe always create a new one? Decided to always create for this example.
-        try:
-            prediction = WildfirePrediction.objects.create(
+            WildfirePrediction.objects.create(
                 region=region,
-                prediction_date=timezone.now(),  # Prediction is made now for the state reflected by latest_weather
+                prediction_date=timezone.now(),
                 risk_level=risk_level,
                 confidence=confidence,
-                features_used=features,  # Store the features used
-                model_version=model.version,  # Use the local 'model' instance
+                features_used={"test": True},
+                model_version="1.0.0",
             )
-        except Exception as e:
-            logger.exception(f"Error saving prediction for region {region_id}")
-            return Response(
-                {"error": "Failed to save prediction result"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
-        # 6. Return the result
-        serializer = self.get_serializer(prediction)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 def dashboard(request):
-    return render(request, "predictions/dashboard.html")
+    """Render the predictions dashboard with current predictions for all regions."""
+    # Generate test predictions if none exist
+    generate_test_predictions()
+
+    regions = Region.objects.all()
+    predictions = []
+
+    for region in regions:
+        try:
+            # Get the latest prediction for the region
+            latest_prediction = (
+                WildfirePrediction.objects.filter(region=region)
+                .order_by("-prediction_date")
+                .first()
+            )
+
+            if latest_prediction:
+                predictions.append(
+                    {
+                        "region": region,
+                        "prediction": latest_prediction,
+                        "risk_level": latest_prediction.get_risk_level_display(),
+                        "risk_color": (
+                            "success"
+                            if latest_prediction.risk_level == WildfirePrediction.LOW
+                            else (
+                                "warning"
+                                if latest_prediction.risk_level
+                                == WildfirePrediction.MEDIUM
+                                else (
+                                    "danger"
+                                    if latest_prediction.risk_level
+                                    == WildfirePrediction.HIGH
+                                    else "dark"
+                                )
+                            )
+                        ),
+                        "confidence": f"{latest_prediction.confidence:.1%}",
+                        "timestamp": latest_prediction.prediction_date.strftime(
+                            "%Y-%m-%d %H:%M"
+                        ),
+                        "explanation": generate_prediction_explanation(
+                            latest_prediction,
+                            latest_prediction.features_used["current_weather"],
+                            latest_prediction.features_used["historical_patterns"],
+                            region,
+                        ),
+                    }
+                )
+            else:
+                # If no prediction exists, show as unknown
+                predictions.append(
+                    {
+                        "region": region,
+                        "prediction": None,
+                        "risk_level": "Unknown",
+                        "risk_color": "secondary",
+                        "confidence": "N/A",
+                        "timestamp": "No prediction available",
+                        "explanation": "No prediction data available for this region.",
+                    }
+                )
+        except Exception as e:
+            logger.error(f"Error fetching prediction for region {region.id}: {e}")
+            predictions.append(
+                {
+                    "region": region,
+                    "prediction": None,
+                    "risk_level": "Error",
+                    "risk_color": "secondary",
+                    "confidence": "N/A",
+                    "timestamp": "Error loading prediction",
+                    "explanation": "An error occurred while generating the prediction.",
+                }
+            )
+
+    return render(
+        request,
+        "predictions/dashboard.html",
+        {"predictions": predictions, "regions": regions},
+    )

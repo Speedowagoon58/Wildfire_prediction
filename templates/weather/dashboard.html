@@ -4,16 +4,76 @@ Prediction System{% endblock %} {% block content %}
   <h1 class="mb-4">Weather Dashboard</h1>
 
   <div class="row">
-    <div class="col-md-12">
-      <div class="card">
+    <div class="col-md-8">
+      <div class="card mb-4">
         <div class="card-header">
-          <h5 class="card-title mb-0">Weather Data</h5>
+          <h5 class="card-title mb-0">Weather Map</h5>
         </div>
         <div class="card-body">
-          <p>Weather data visualization will be displayed here.</p>
+          <div id="map" style="height: 500px"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="card-title mb-0">Weather Summary</h5>
+        </div>
+        <div class="card-body">
+          <div class="list-group">
+            {% for data in weather_data %}
+            <div class="list-group-item">
+              <div class="d-flex justify-content-between align-items-center">
+                <h6 class="mb-1">{{ data.region.name }}</h6>
+                <span class="badge bg-{{ data.risk_color }}"
+                  >{{ data.risk_level }} Risk</span
+                >
+              </div>
+              <div class="small text-muted">
+                <div>Temperature: {{ data.weather.temperature }}°C</div>
+                <div>Humidity: {{ data.weather.humidity }}%</div>
+                <div>Wind: {{ data.weather.wind_speed }} km/h</div>
+                <div>Precipitation: {{ data.weather.precipitation }} mm</div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
         </div>
       </div>
     </div>
   </div>
 </div>
-{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Initialize the map
+  var map = L.map('map').setView([31.7917, -7.0926], 6);
+
+  // Add OpenStreetMap tiles
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  }).addTo(map);
+
+  // Add markers for each region
+  {% for data in weather_data %}
+  var marker = L.marker([{{ data.region.latitude }}, {{ data.region.longitude }}]).addTo(map);
+  marker.bindPopup(`
+    <strong>{{ data.region.name }}</strong><br>
+    Risk Level: <span class="text-{{ data.risk_color }}">{{ data.risk_level }}</span><br>
+    Temperature: {{ data.weather.temperature }}°C<br>
+    Humidity: {{ data.weather.humidity }}%<br>
+    Wind: {{ data.weather.wind_speed }} km/h<br>
+    Precipitation: {{ data.weather.precipitation }} mm
+  `);
+
+  // Add a colored circle to indicate risk level
+  L.circle([{{ data.region.latitude }}, {{ data.region.longitude }}], {
+    color: '{{ data.risk_color }}',
+    fillColor: '{{ data.risk_color }}',
+    fillOpacity: 0.3,
+    radius: 10000
+  }).addTo(map);
+  {% endfor %}
+</script>
+{% endblock %} {% endblock %}

@@ -120,3 +120,7 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
 }
+
+# OpenWeatherMap API Settings
+OPENWEATHERMAP_API_KEY = os.getenv("OPENWEATHERMAP_API_KEY")
+OPENWEATHERMAP_API_URL = "https://api.openweathermap.org/data/2.5/weather"

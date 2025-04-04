@@ -1,22 +1,107 @@
-{% extends "base.html" %} {% block title %}Predictions Dashboard - Wildfire
+{% extends "base.html" %} {% block title %}Wildfire Predictions - Wildfire
 Prediction System{% endblock %} {% block content %}
-<div class="container">
-  <h1 class="mb-4">Predictions Dashboard</h1>
+<div class="container mt-4">
+  <h1 class="mb-4">Wildfire Risk Predictions</h1>
 
   <div class="row">
-    <div class="col-md-12">
+    <div class="col-md-8">
       <div class="card">
         <div class="card-header">
-          <h5 class="card-title mb-0">Wildfire Predictions</h5>
+          <h5 class="card-title mb-0">Current Predictions</h5>
         </div>
         <div class="card-body">
-          <p>
-            Wildfire prediction results and visualizations will be displayed
-            here.
-          </p>
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>Region</th>
+                  <th>Risk Level</th>
+                  <th>Confidence</th>
+                  <th>Last Updated</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for prediction in predictions %}
+                <tr>
+                  <td>
+                    <strong>{{ prediction.region.name }}</strong>
+                    <div class="cities-list">
+                      {% for city in prediction.region.cities.all %}
+                      <small class="text-muted">{{ city.name }}</small>
+                      {% if not forloop.last %}, {% endif %} {% endfor %}
+                    </div>
+                  </td>
+                  <td>
+                    <span class="badge bg-{{ prediction.risk_color }}">
+                      {{ prediction.risk_level }}
+                    </span>
+                  </td>
+                  <td>{{ prediction.confidence }}</td>
+                  <td>{{ prediction.timestamp }}</td>
+                </tr>
+                <tr>
+                  <td colspan="4" class="prediction-explanation">
+                    <small class="text-muted">
+                      <i class="fas fa-info-circle"></i>
+                      {{ prediction.explanation }}
+                    </small>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="card-title mb-0">Risk Level Legend</h5>
+        </div>
+        <div class="card-body">
+          <ul class="list-unstyled">
+            <li class="mb-2">
+              <span class="badge bg-danger">High Risk</span>
+              <p class="small text-muted mb-0">
+                Significant likelihood of wildfire occurrence
+              </p>
+            </li>
+            <li class="mb-2">
+              <span class="badge bg-warning">Medium Risk</span>
+              <p class="small text-muted mb-0">
+                Moderate likelihood of wildfire occurrence
+              </p>
+            </li>
+            <li class="mb-2">
+              <span class="badge bg-success">Low Risk</span>
+              <p class="small text-muted mb-0">
+                Lower likelihood of wildfire occurrence
+              </p>
+            </li>
+          </ul>
         </div>
       </div>
     </div>
   </div>
 </div>
+
+<style>
+  .prediction-explanation {
+    background-color: #f8f9fa;
+    padding: 10px 15px;
+    border-bottom: 1px solid #dee2e6;
+  }
+  .prediction-explanation small {
+    display: block;
+    line-height: 1.4;
+  }
+  .cities-list {
+    margin-top: 5px;
+  }
+  .cities-list small {
+    font-size: 0.85em;
+  }
+</style>
 {% endblock %}

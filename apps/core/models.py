@@ -17,6 +17,22 @@ class Region(models.Model):
         return self.name
 
 
+class City(models.Model):
+    name = models.CharField(max_length=100)
+    region = models.ForeignKey(Region, on_delete=models.CASCADE, related_name="cities")
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    population = models.IntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name_plural = "Cities"
+
+    def __str__(self):
+        return f"{self.name} ({self.region.name})"
+
+
 class WildfireEvent(models.Model):
     LOW = 1
     MEDIUM = 2

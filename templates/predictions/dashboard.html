@@ -7,59 +7,264 @@ Dashboard{% endblock %} {% block extra_css %}
   crossorigin=""
 />
 <style>
+  .dashboard-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  .dashboard-header {
+    margin-bottom: 2.5rem;
+    text-align: center;
+  }
+
+  .dashboard-header h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--text-color);
+    margin-bottom: 1rem;
+  }
+
+  .dashboard-header p {
+    color: var(--text-muted);
+    font-size: 1.1rem;
+  }
+
   #map {
-    height: 400px;
+    height: 500px;
     width: 100%;
     margin-bottom: 2rem;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     position: relative;
     z-index: 1;
     cursor: grab;
+    transition: box-shadow 0.3s ease;
   }
+
+  #map:hover {
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+  }
+
   #map:active {
     cursor: grabbing;
   }
+
   .risk-legend {
-    background: white;
-    padding: 10px;
-    border-radius: 4px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    background: var(--background-color);
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     position: absolute;
     bottom: 20px;
     right: 20px;
     z-index: 1000;
+    border: 1px solid var(--border-color);
   }
+
+  .risk-legend h4 {
+    margin-bottom: 1rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-color);
+  }
+
   .risk-legend i {
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
     float: left;
-    margin-right: 8px;
-    opacity: 0.7;
+    margin-right: 10px;
+    border-radius: 4px;
+    opacity: 0.9;
   }
+
   .map-container {
     position: relative;
-    margin-bottom: 2rem;
+    margin-bottom: 3rem;
   }
+
   .leaflet-control-zoom {
     border: none !important;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+    border-radius: 8px !important;
   }
+
   .leaflet-control-zoom a {
-    background-color: white !important;
-    color: #333 !important;
+    background-color: var(--background-color) !important;
+    color: var(--text-color) !important;
     border: none !important;
+    border-radius: 4px !important;
   }
+
   .leaflet-control-zoom a:hover {
-    background-color: #f8f9fa !important;
+    background-color: var(--hover-color) !important;
   }
+
   .leaflet-interactive {
     cursor: pointer !important;
+    transition: transform 0.2s ease;
+  }
+
+  .leaflet-interactive:hover {
+    transform: scale(1.1);
+  }
+
+  .card {
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+    height: 100%;
+  }
+
+  .card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .card-body {
+    padding: 1.5rem;
+  }
+
+  .card-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: var(--text-color);
+  }
+
+  .risk-indicator {
+    margin: 1rem 0;
+  }
+
+  .badge {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    border-radius: 20px;
+  }
+
+  .card-text {
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+
+  .text-muted {
+    font-size: 0.9rem;
+  }
+
+  @media (max-width: 768px) {
+    .dashboard-container {
+      padding: 1rem;
+    }
+
+    .dashboard-header h1 {
+      font-size: 2rem;
+    }
+
+    #map {
+      height: 400px;
+    }
+
+    .risk-legend {
+      position: relative;
+      bottom: auto;
+      right: auto;
+      margin-top: 1rem;
+    }
+  }
+
+  /* Loading States */
+  .loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+  }
+
+  .loading-overlay.active {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 3px solid var(--border-color);
+    border-top: 3px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  .loading-text {
+    margin-top: 1rem;
+    color: var(--text-color);
+    font-size: 1.1rem;
+    font-weight: 500;
+  }
+
+  .card.loading {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card.loading::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.2) 50%,
+      transparent 100%
+    );
+    animation: shimmer 1.5s infinite;
+  }
+
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
   }
 </style>
 {% endblock %} {% block content %}
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="text-center">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Loading predictions...</div>
+  </div>
+</div>
+
 <div class="dashboard-container animate-fade-in">
-  <h1 class="mb-4">Regional Risk Assessment</h1>
+  <div class="dashboard-header">
+    <h1>Regional Risk Assessment</h1>
+    <p>Monitor wildfire risk levels across different regions in real-time</p>
+  </div>
 
   <!-- Map Container -->
   <div class="map-container hover-lift mb-4">
@@ -141,47 +346,73 @@ Dashboard{% endblock %} {% block extra_css %}
 ></script>
 <script>
   document.addEventListener('DOMContentLoaded', function() {
-      // Initialize map
-      var map = L.map('map').setView([31.7917, -7.0926], 6);
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const cards = document.querySelectorAll('.card');
 
-      // Add tile layer with animation
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '© OpenStreetMap contributors'
-      }).addTo(map);
+    // Show loading state
+    function showLoading() {
+      loadingOverlay.classList.add('active');
+      cards.forEach(card => card.classList.add('loading'));
+    }
 
-      // Add markers with animation
-      {% for prediction in regions %}
-      var marker = L.circleMarker(
-          [{{ prediction.region.latitude }}, {{ prediction.region.longitude }}],
-          {
-              radius: 10,
-              fillColor: {% if prediction.risk_color == 'success' %}'#28a745'{% elif prediction.risk_color == 'warning' %}'#ffc107'{% else %}'#dc3545'{% endif %},
-              color: '#fff',
-              weight: 2,
-              opacity: 1,
-              fillOpacity: 0.8
-          }
-      ).addTo(map);
+    // Hide loading state
+    function hideLoading() {
+      loadingOverlay.classList.remove('active');
+      cards.forEach(card => card.classList.remove('loading'));
+    }
 
-      // Add bounce animation on hover
-      marker.on('mouseover', function() {
-          this._path.classList.add('marker-bounce');
-      });
-      marker.on('mouseout', function() {
-          this._path.classList.remove('marker-bounce');
-      });
+    // Show loading initially
+    showLoading();
 
-      // Add popup with animation
-      var popupContent = '<div class="animate-fade-in">' +
-          '<h6>{{ prediction.region.name|escapejs }}</h6>' +
-          {% if prediction.risk_level %}
-              '<span class="badge bg-{{ prediction.risk_color }}">{{ prediction.risk_level_display|escapejs }}</span>' +
-              '<p class="mt-2 mb-0"><small>{{ prediction.explanation|escapejs }}</small></p>'
-          {% else %}
-              '<p class="mt-2 mb-0"><small>No recent weather data available for prediction.</small></p>'
-          {% endif %};
-      marker.bindPopup(popupContent);
-      {% endfor %}
+    // Initialize map
+    var map = L.map('map').setView([31.7917, -7.0926], 6);
+
+    // Add tile layer with animation
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Add markers with animation
+    {% for prediction in regions %}
+    var marker = L.circleMarker(
+      [{{ prediction.region.latitude }}, {{ prediction.region.longitude }}],
+      {
+        radius: 12,
+        fillColor: {% if prediction.risk_color == 'success' %}'#28a745'{% elif prediction.risk_color == 'warning' %}'#ffc107'{% else %}'#dc3545'{% endif %},
+        color: '#fff',
+        weight: 2,
+        opacity: 1,
+        fillOpacity: 0.8
+      }
+    ).addTo(map);
+
+    // Add bounce animation on hover
+    marker.on('mouseover', function() {
+      this._path.classList.add('marker-bounce');
+    });
+    marker.on('mouseout', function() {
+      this._path.classList.remove('marker-bounce');
+    });
+
+    // Add popup with animation
+    var popupContent = '<div class="animate-fade-in">' +
+      '<h6>{{ prediction.region.name|escapejs }}</h6>' +
+      {% if prediction.risk_level %}
+        '<span class="badge bg-{{ prediction.risk_color }}">{{ prediction.risk_level_display|escapejs }}</span>' +
+        '<p class="mt-2 mb-0"><small>{{ prediction.explanation|escapejs }}</small></p>'
+      {% else %}
+        '<p class="mt-2 mb-0"><small>No recent weather data available for prediction.</small></p>'
+      {% endif %}
+      '</div>';
+    marker.bindPopup(popupContent);
+    {% endfor %}
+
+    // Hide loading after everything is initialized
+    setTimeout(hideLoading, 1000);
+
+    // Add loading state for map interactions
+    map.on('loading', showLoading);
+    map.on('load', hideLoading);
   });
 </script>
 {% endblock %}

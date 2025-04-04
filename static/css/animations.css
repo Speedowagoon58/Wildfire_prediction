@@ -63,6 +63,25 @@
   }
 }
 
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeInOut {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 /* Animation Classes */
 .animate-fade-in {
   animation: fadeIn 0.5s ease-out forwards;
@@ -145,20 +164,37 @@
   animation: spin 1s linear infinite;
 }
 
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
+/* Loading States */
+.loading-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--background-color) 0%,
+    var(--hover-color) 50%,
+    var(--background-color) 100%
+  );
+  background-size: 2000px 100%;
+  animation: shimmer 2s infinite linear;
 }
 
-/* Page Transitions */
-.page-transition {
-  opacity: 0;
-  transform: translateY(20px);
-  animation: fadeIn 0.8s ease-out forwards;
+.loading-pulse {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.loading-fade {
+  animation: fadeInOut 1.5s ease-in-out infinite;
+}
+
+/* Transition Classes */
+.transition-all {
+  transition: all 0.3s ease;
+}
+
+.transition-transform {
+  transition: transform 0.3s ease;
+}
+
+.transition-opacity {
+  transition: opacity 0.3s ease;
 }
 
 /* Navigation Links */
@@ -207,31 +243,6 @@
   height: 300%;
 }
 
-/* Loading States */
-.loading-shimmer {
-  background: linear-gradient(
-    90deg,
-    var(--background-color) 0%,
-    var(--hover-color) 50%,
-    var(--background-color) 100%
-  );
-  background-size: 2000px 100%;
-  animation: shimmer 2s infinite linear;
-}
-
-/* Transition Classes */
-.transition-all {
-  transition: all 0.3s ease;
-}
-
-.transition-transform {
-  transition: transform 0.3s ease;
-}
-
-.transition-opacity {
-  transition: opacity 0.3s ease;
-}
-
 /* Responsive Animations */
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in,
@@ -242,7 +253,10 @@
   .marker-bounce,
   .hover-lift,
   .hover-scale,
-  .loading-shimmer {
+  .loading-shimmer,
+  .loading-spinner,
+  .loading-pulse,
+  .loading-fade {
     animation: none !important;
     transition: none !important;
   }

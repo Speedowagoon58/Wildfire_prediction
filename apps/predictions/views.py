@@ -331,7 +331,7 @@ class PredictionViewSet(viewsets.ViewSet):
 
         for region in regions:
             try:
-                # Get or fetch current weather data
+                # Get current weather data
                 current_weather = (
                     WeatherData.objects.filter(region=region)
                     .order_by("-timestamp")
@@ -344,21 +344,26 @@ class PredictionViewSet(viewsets.ViewSet):
                     or (timezone.now() - current_weather.timestamp).total_seconds()
                     > 3600
                 ):
-                    current_weather = fetch_current_weather(region)
-
-                if not current_weather:
-                    predictions.append(
-                        {
-                            "region": region,
-                            "prediction": None,
-                            "risk_level": "No Data",
-                            "risk_color": "secondary",
-                            "confidence": "N/A",
-                            "timestamp": "Weather data unavailable",
-                            "explanation": "Unable to fetch current weather data. Please check the weather service or API key.",
-                        }
-                    )
-                    continue
+                    try:
+                        current_weather = fetch_current_weather(region)
+                        if not current_weather:
+                            raise Exception("Failed to fetch current weather data")
+                    except Exception as e:
+                        logger.error(
+                            f"Error fetching weather data for region {region.id}: {e}"
+                        )
+                        predictions.append(
+                            {
+                                "region": region,
+                                "prediction": None,
+                                "risk_level": "No Data",
+                                "risk_color": "secondary",
+                                "confidence": "N/A",
+                                "timestamp": "Weather data unavailable",
+                                "explanation": f"Unable to fetch current weather data: {str(e)}",
+                            }
+                        )
+                        continue
 
                 # Analyze historical patterns
                 historical_patterns = analyze_historical_patterns(region)
@@ -417,10 +422,24 @@ class PredictionViewSet(viewsets.ViewSet):
                     {
                         "region": region,
                         "prediction": prediction,
-                        "risk_level": risk_prediction["risk_level"],
-                        "risk_color": risk_prediction["risk_color"],
-                        "confidence": f"{risk_prediction['confidence'] * 100:.1f}%",
-                        "timestamp": timezone.now().strftime("%Y-%m-%d %H:%M"),
+                        "risk_level": prediction.get_risk_level_display(),
+                        "risk_color": (
+                            "success"
+                            if prediction.risk_level == WildfirePrediction.LOW
+                            else (
+                                "warning"
+                                if prediction.risk_level == WildfirePrediction.MEDIUM
+                                else (
+                                    "danger"
+                                    if prediction.risk_level == WildfirePrediction.HIGH
+                                    else "dark"
+                                )
+                            )
+                        ),
+                        "confidence": f"{prediction.confidence:.1%}",
+                        "timestamp": prediction.prediction_date.strftime(
+                            "%Y-%m-%d %H:%M"
+                        ),
                         "explanation": generate_prediction_explanation(
                             risk_prediction,
                             current_weather,
@@ -431,9 +450,7 @@ class PredictionViewSet(viewsets.ViewSet):
                 )
 
             except Exception as e:
-                logger.error(
-                    f"Error processing prediction for region {region.name}: {str(e)}"
-                )
+                logger.error(f"Error fetching prediction for region {region.id}: {e}")
                 predictions.append(
                     {
                         "region": region,
@@ -441,8 +458,8 @@ class PredictionViewSet(viewsets.ViewSet):
                         "risk_level": "Error",
                         "risk_color": "secondary",
                         "confidence": "N/A",
-                        "timestamp": "Error processing prediction",
-                        "explanation": f"An unexpected error occurred: {str(e)}",
+                        "timestamp": "Error loading prediction",
+                        "explanation": f"An error occurred while generating the prediction: {str(e)}",
                     }
                 )
 
@@ -481,67 +498,124 @@ def generate_test_predictions():
 
 def dashboard(request):
     """Render the predictions dashboard with current predictions for all regions."""
-    # Generate test predictions if none exist
-    generate_test_predictions()
-
     regions = Region.objects.all()
     predictions = []
 
     for region in regions:
         try:
-            # Get the latest prediction for the region
-            latest_prediction = (
-                WildfirePrediction.objects.filter(region=region)
-                .order_by("-prediction_date")
-                .first()
+            # Get current weather data
+            current_weather = (
+                WeatherData.objects.filter(region=region).order_by("-timestamp").first()
             )
 
-            if latest_prediction:
-                predictions.append(
-                    {
-                        "region": region,
-                        "prediction": latest_prediction,
-                        "risk_level": latest_prediction.get_risk_level_display(),
-                        "risk_color": (
-                            "success"
-                            if latest_prediction.risk_level == WildfirePrediction.LOW
-                            else (
-                                "warning"
-                                if latest_prediction.risk_level
-                                == WildfirePrediction.MEDIUM
-                                else (
-                                    "danger"
-                                    if latest_prediction.risk_level
-                                    == WildfirePrediction.HIGH
-                                    else "dark"
-                                )
-                            )
-                        ),
-                        "confidence": f"{latest_prediction.confidence:.1%}",
-                        "timestamp": latest_prediction.prediction_date.strftime(
-                            "%Y-%m-%d %H:%M"
-                        ),
-                        "explanation": generate_prediction_explanation(
-                            latest_prediction,
-                            latest_prediction.features_used["current_weather"],
-                            latest_prediction.features_used["historical_patterns"],
-                            region,
-                        ),
-                    }
-                )
-            else:
-                # If no prediction exists, show as unknown
+            # If no recent weather data (within last hour) or no weather data at all
+            if (
+                not current_weather
+                or (timezone.now() - current_weather.timestamp).total_seconds() > 3600
+            ):
+                try:
+                    current_weather = fetch_current_weather(region)
+                    if not current_weather:
+                        raise Exception("Failed to fetch current weather data")
+                except Exception as e:
+                    logger.error(
+                        f"Error fetching weather data for region {region.id}: {e}"
+                    )
+                    predictions.append(
+                        {
+                            "region": region,
+                            "prediction": None,
+                            "risk_level": "No Data",
+                            "risk_color": "secondary",
+                            "confidence": "N/A",
+                            "timestamp": "Weather data unavailable",
+                            "explanation": f"Unable to fetch current weather data: {str(e)}",
+                        }
+                    )
+                    continue
+
+            # Analyze historical patterns
+            historical_patterns = analyze_historical_patterns(region)
+            if not historical_patterns:
                 predictions.append(
                     {
                         "region": region,
                         "prediction": None,
-                        "risk_level": "Unknown",
+                        "risk_level": "No Data",
                         "risk_color": "secondary",
                         "confidence": "N/A",
-                        "timestamp": "No prediction available",
-                        "explanation": "No prediction data available for this region.",
+                        "timestamp": "Insufficient historical data",
+                        "explanation": "Not enough historical weather data available for prediction.",
                     }
                 )
+                continue
+
+            # Calculate risk
+            risk_prediction = calculate_wildfire_risk(
+                current_weather, historical_patterns, region
+            )
+
+            if not risk_prediction:
+                predictions.append(
+                    {
+                        "region": region,
+                        "prediction": None,
+                        "risk_level": "Error",
+                        "risk_color": "secondary",
+                        "confidence": "N/A",
+                        "timestamp": "Error calculating risk",
+                        "explanation": "An error occurred while calculating the risk prediction.",
+                    }
+                )
+                continue
+
+            # Create a new prediction record
+            prediction = WildfirePrediction.objects.create(
+                region=region,
+                prediction_date=timezone.now(),
+                risk_level=risk_prediction["risk_level"],
+                confidence=risk_prediction["confidence"],
+                features_used={
+                    "current_weather": {
+                        "temperature": current_weather.temperature,
+                        "humidity": current_weather.humidity,
+                        "wind_speed": current_weather.wind_speed,
+                        "precipitation": current_weather.precipitation,
+                    },
+                    "historical_patterns": historical_patterns,
+                },
+                model_version="1.0",
+            )
+
+            predictions.append(
+                {
+                    "region": region,
+                    "prediction": prediction,
+                    "risk_level": prediction.get_risk_level_display(),
+                    "risk_color": (
+                        "success"
+                        if prediction.risk_level == WildfirePrediction.LOW
+                        else (
+                            "warning"
+                            if prediction.risk_level == WildfirePrediction.MEDIUM
+                            else (
+                                "danger"
+                                if prediction.risk_level == WildfirePrediction.HIGH
+                                else "dark"
+                            )
+                        )
+                    ),
+                    "confidence": f"{prediction.confidence:.1%}",
+                    "timestamp": prediction.prediction_date.strftime("%Y-%m-%d %H:%M"),
+                    "explanation": generate_prediction_explanation(
+                        risk_prediction,
+                        current_weather,
+                        historical_patterns,
+                        region,
+                    ),
+                }
+            )
+
         except Exception as e:
             logger.error(f"Error fetching prediction for region {region.id}: {e}")
             predictions.append(
@@ -552,7 +626,7 @@ def dashboard(request):
                     "risk_color": "secondary",
                     "confidence": "N/A",
                     "timestamp": "Error loading prediction",
-                    "explanation": "An error occurred while generating the prediction.",
+                    "explanation": f"An error occurred while generating the prediction: {str(e)}",
                 }
             )
 

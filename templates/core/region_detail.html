@@ -101,9 +101,13 @@ Wildfire Prediction System{% endblock %} {% block content %}
       .then((response) => response.json())
       .then((data) => {
         document.getElementById("weather-data").innerHTML = `
-                <p><strong>Temperature:</strong> ${data.temperature}°C</p>
-                <p><strong>Humidity:</strong> ${data.humidity}%</p>
-                <p><strong>Wind Speed:</strong> ${data.wind_speed} m/s</p>
+                <p><strong>Temperature:</strong> ${Math.round(
+                  data.temperature
+                )}°C</p>
+                <p><strong>Humidity:</strong> ${Math.round(data.humidity)}%</p>
+                <p><strong>Wind Speed:</strong> ${Math.round(
+                  data.wind_speed
+                )} m/s</p>
                 <p><strong>Last Updated:</strong> ${new Date(
                   data.timestamp
                 ).toLocaleString()}</p>
@@ -119,7 +123,7 @@ Wildfire Prediction System{% endblock %} {% block content %}
     fetch(`/predictions/api/risk/${region.id}/`)
       .then((response) => response.json())
       .then((data) => {
-        const riskLevel = data.risk_level * 100;
+        const riskLevel = Math.round(data.risk_level * 100);
         const riskColor =
           riskLevel < 25
             ? "success"
@@ -131,7 +135,7 @@ Wildfire Prediction System{% endblock %} {% block content %}
 
         document.getElementById("risk-assessment").innerHTML = `
                 <div class="text-center">
-                    <h4 class="text-${riskColor}">${riskLevel.toFixed(1)}%</h4>
+                    <h4 class="text-${riskColor}">${riskLevel}%</h4>
                     <p>Current Risk Level</p>
                     <div class="progress">
                         <div class="progress-bar bg-${riskColor}" 
@@ -142,9 +146,9 @@ Wildfire Prediction System{% endblock %} {% block content %}
                              aria-valuemax="100">
                         </div>
                     </div>
-                    <p class="mt-2"><small>Confidence: ${(
+                    <p class="mt-2"><small>Confidence: ${Math.round(
                       data.confidence * 100
-                    ).toFixed(1)}%</small></p>
+                    )}%</small></p>
                 </div>
             `;
       })

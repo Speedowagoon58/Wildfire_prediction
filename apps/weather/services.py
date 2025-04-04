@@ -3,6 +3,9 @@ from django.conf import settings
 from datetime import datetime
 from django.utils import timezone
 from .models import WeatherData
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def fetch_current_weather(region):
@@ -21,22 +24,35 @@ def fetch_current_weather(region):
         response.raise_for_status()
         data = response.json()
 
-        # Convert OpenWeatherMap data to our format
-        weather_data = WeatherData.objects.create(
-            region=region,
-            timestamp=timezone.now(),
-            temperature=data["main"]["temp"],
-            humidity=data["main"]["humidity"],
-            wind_speed=data["wind"]["speed"],
-            wind_direction=data["wind"].get("deg", 0),
-            precipitation=data.get("rain", {}).get("1h", 0),  # Rain in last hour
-            pressure=data["main"]["pressure"],
-        )
+        # Create a dictionary with the weather data
+        weather_data_dict = {
+            "region": region,
+            "timestamp": timezone.now(),
+            "temperature": data["main"]["temp"],
+            "humidity": data["main"]["humidity"],
+            "wind_speed": data["wind"]["speed"],
+            "wind_direction": data["wind"].get("deg", 0),
+            "precipitation": data.get("rain", {}).get("1h", 0),  # Rain in last hour
+            "pressure": data["main"]["pressure"],
+        }
+
+        # Create the WeatherData object
+        weather_data = WeatherData.objects.create(**weather_data_dict)
 
         return weather_data
 
     except requests.RequestException as e:
-        print(f"Error fetching weather data for {region.name}: {str(e)}")
+        logger.error(f"Error fetching weather data for {region.name}: {str(e)}")
+        return None
+    except KeyError as e:
+        logger.error(
+            f"Missing data in weather API response for {region.name}: {str(e)}"
+        )
+        return None
+    except Exception as e:
+        logger.error(
+            f"Unexpected error fetching weather data for {region.name}: {str(e)}"
+        )
         return None
 
 

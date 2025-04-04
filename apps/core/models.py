@@ -105,3 +105,24 @@ class WildfireEvent(models.Model):
 
     def __str__(self):
         return f"Wildfire at {self.region.name} on {self.start_date.date()}"
+
+
+class Forest(models.Model):
+    name = models.CharField(max_length=100)
+    region = models.ForeignKey(
+        "Region", on_delete=models.CASCADE, related_name="forests"
+    )
+    area = models.FloatField(help_text="Area in square kilometers")
+    dominant_species = models.CharField(
+        max_length=100, help_text="Dominant tree species"
+    )
+    density = models.FloatField(
+        help_text="Forest density (0-1)",
+        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
+    )
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.region.name})"

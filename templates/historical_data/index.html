@@ -361,9 +361,13 @@ endblock %} {% block content %}
       const row = document.createElement("tr");
       row.innerHTML = `
         <td>${new Date(item.date).toLocaleDateString()}</td>
-        <td>${item.max_temperature?.toFixed(1) || "N/A"}</td>
-        <td>${item.avg_humidity?.toFixed(1) || "N/A"}</td>
-        <td>${item.max_wind_speed?.toFixed(1) || "N/A"}</td>
+        <td>${
+          item.max_temperature ? Math.round(item.max_temperature) : "N/A"
+        }</td>
+        <td>${item.avg_humidity ? Math.round(item.avg_humidity) : "N/A"}</td>
+        <td>${
+          item.max_wind_speed ? Math.round(item.max_wind_speed) : "N/A"
+        }</td>
         <td>N/A</td>
         <td>${item.area_affected ? "Yes" : "No"}</td>
       `;
@@ -376,25 +380,25 @@ endblock %} {% block content %}
     statsContent.innerHTML = `
       <div class="mb-2">
         <strong>Temperature:</strong>
-        <div>Avg: ${stats.avg_temperature.toFixed(1)}°C</div>
+        <div>Avg: ${Math.round(stats.avg_temperature)}°C</div>
       </div>
       <div class="mb-2">
         <strong>Humidity:</strong>
-        <div>Avg: ${stats.avg_humidity.toFixed(1)}%</div>
+        <div>Avg: ${Math.round(stats.avg_humidity)}%</div>
       </div>
       <div class="mb-2">
         <strong>Wind Speed:</strong>
-        <div>Avg: ${stats.avg_wind_speed.toFixed(1)} m/s</div>
+        <div>Avg: ${Math.round(stats.avg_wind_speed)} m/s</div>
       </div>
       <div class="mb-2">
         <strong>Area Affected:</strong>
-        <div>Total: ${stats.total_area_affected.toFixed(1)} ha</div>
+        <div>Total: ${Math.round(stats.total_area_affected)} ha</div>
       </div>
       <div>
         <strong>Fires:</strong>
         <div>Total: ${stats.total_fires}</div>
-        <div>Avg Containment Time: ${stats.avg_containment_time.toFixed(
-          1
+        <div>Avg Containment Time: ${Math.round(
+          stats.avg_containment_time
         )} hours</div>
       </div>
     `;

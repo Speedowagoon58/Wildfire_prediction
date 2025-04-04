@@ -8,6 +8,15 @@ function formatWindSpeed(speed) {
   return `${Math.round(speed)} km/h`;
 }
 
+// Loading state management for content sections
+function showContentLoading(element) {
+  element.classList.add("content-loading");
+}
+
+function hideContentLoading(element) {
+  element.classList.remove("content-loading");
+}
+
 // Calculate risk level based on weather parameters
 function calculateRiskLevel(temperature, humidity, windSpeed) {
   let riskScore = 0;
@@ -140,6 +149,12 @@ function initializeMapMarkers(map, locations) {
 function handleRegionChange(selectElement) {
   const regionId = selectElement.value;
   if (regionId) {
+    const weatherCard = document.querySelector(".weather-card");
+    const riskIndicator = document.querySelector(".risk-indicator");
+
+    if (weatherCard) showContentLoading(weatherCard);
+    if (riskIndicator) showContentLoading(riskIndicator);
+
     // Fetch weather data for the selected region
     fetch(`/api/weather/${regionId}/`)
       .then((response) => response.json())
@@ -152,12 +167,17 @@ function handleRegionChange(selectElement) {
           data.humidity,
           data.windSpeed
         );
-        const riskElement = document.querySelector(".risk-indicator");
-        if (riskElement) {
-          updateRiskIndicator(riskElement, riskLevel);
+        if (riskIndicator) {
+          updateRiskIndicator(riskIndicator, riskLevel);
+          hideContentLoading(riskIndicator);
         }
+        if (weatherCard) hideContentLoading(weatherCard);
       })
-      .catch((error) => console.error("Error fetching weather data:", error));
+      .catch((error) => {
+        console.error("Error fetching weather data:", error);
+        if (weatherCard) hideContentLoading(weatherCard);
+        if (riskIndicator) hideContentLoading(riskIndicator);
+      });
   }
 }
 
@@ -174,8 +194,18 @@ document.addEventListener("DOMContentLoaded", function () {
   // Initialize map if container exists
   const mapContainer = document.getElementById("map");
   if (mapContainer) {
+    showContentLoading(mapContainer);
     const map = initializeMap("map");
-    // You can load initial markers here if needed
+    // Load initial markers
+    Promise.all([fetchWeatherData("initial"), fetchPredictions("initial")])
+      .then(([weatherData, predictionsData]) => {
+        initializeMapMarkers(map, weatherData.locations);
+        hideContentLoading(mapContainer);
+      })
+      .catch((error) => {
+        console.error("Error initializing map:", error);
+        hideContentLoading(mapContainer);
+      });
   }
 
   // Initialize tooltips
@@ -195,23 +225,35 @@ document.addEventListener("DOMContentLoaded", function () {
 
 // API handling functions
 async function fetchWeatherData(regionId) {
+  const weatherSection = document.querySelector(".weather-section");
+  if (weatherSection) showContentLoading(weatherSection);
+
   try {
     const response = await fetch(`/api/weather/current/${regionId}/`);
     if (!response.ok) throw new Error("Weather data fetch failed");
-    return await response.json();
+    const data = await response.json();
+    if (weatherSection) hideContentLoading(weatherSection);
+    return data;
   } catch (error) {
-    console.error("Error fetching weather data:", error);
+    console.error("Error:", error);
+    if (weatherSection) hideContentLoading(weatherSection);
     throw error;
   }
 }
 
 async function fetchPredictions(regionId) {
+  const predictionsSection = document.querySelector(".predictions-section");
+  if (predictionsSection) showContentLoading(predictionsSection);
+
   try {
     const response = await fetch(`/api/predictions/${regionId}/`);
     if (!response.ok) throw new Error("Predictions fetch failed");
-    return await response.json();
+    const data = await response.json();
+    if (predictionsSection) hideContentLoading(predictionsSection);
+    return data;
   } catch (error) {
-    console.error("Error fetching predictions:", error);
+    console.error("Error:", error);
+    if (predictionsSection) hideContentLoading(predictionsSection);
     throw error;
   }
 }

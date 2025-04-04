@@ -10,7 +10,7 @@ Prediction System{% endblock %} {% block content %}
           <h5 class="card-title mb-0">Weather Map</h5>
         </div>
         <div class="card-body">
-          <div id="map" style="height: 500px"></div>
+          <div id="map" class="weather-section" style="height: 500px"></div>
         </div>
       </div>
     </div>
@@ -20,7 +20,7 @@ Prediction System{% endblock %} {% block content %}
         <div class="card-header">
           <h5 class="card-title mb-0">Weather Summary</h5>
         </div>
-        <div class="card-body">
+        <div class="card-body weather-section">
           <div class="list-group">
             {% for data in weather_data %}
             <div class="list-group-item">
@@ -32,12 +32,12 @@ Prediction System{% endblock %} {% block content %}
               </div>
               <div class="small text-muted">
                 <div>
-                  Temperature: {{ data.weather.temperature|floatformat:1 }}°C
+                  Temperature: {{ data.weather.temperature|floatformat:0 }}°C
                 </div>
-                <div>Humidity: {{ data.weather.humidity|floatformat:1 }}%</div>
-                <div>Wind: {{ data.weather.wind_speed|floatformat:1 }} m/s</div>
+                <div>Humidity: {{ data.weather.humidity|floatformat:0 }}%</div>
+                <div>Wind: {{ data.weather.wind_speed|floatformat:0 }} m/s</div>
                 <div>
-                  Precipitation: {{ data.weather.precipitation|floatformat:1 }}
+                  Precipitation: {{ data.weather.precipitation|floatformat:0 }}
                   mm
                 </div>
               </div>
@@ -66,10 +66,10 @@ Prediction System{% endblock %} {% block content %}
   marker.bindPopup(`
     <strong>{{ data.region.name }}</strong><br>
     Risk Level: <span class="text-{{ data.risk_color }}">{{ data.risk_level }}</span><br>
-    Temperature: {{ data.weather.temperature|floatformat:1 }}°C<br>
-    Humidity: {{ data.weather.humidity|floatformat:1 }}%<br>
-    Wind: {{ data.weather.wind_speed|floatformat:1 }} m/s<br>
-    Precipitation: {{ data.weather.precipitation|floatformat:1 }} mm
+    Temperature: {{ data.weather.temperature|floatformat:0 }}°C<br>
+    Humidity: {{ data.weather.humidity|floatformat:0 }}%<br>
+    Wind: {{ data.weather.wind_speed|floatformat:0 }} m/s<br>
+    Precipitation: {{ data.weather.precipitation|floatformat:0 }} mm
   `);
 
   // Add a colored circle to indicate risk level
@@ -85,12 +85,12 @@ Prediction System{% endblock %} {% block content %}
     const popupContent = `
       <div class="weather-popup">
         <h4>${weather.region.name}</h4>
-        <p>Temperature: ${weather.temperature.toFixed(1)}°C</p>
-        <p>Humidity: ${weather.humidity.toFixed(1)}%</p>
-        <p>Wind Speed: ${weather.wind_speed.toFixed(1)} m/s</p>
-        <p>Wind Direction: ${weather.wind_direction.toFixed(1)}°</p>
-        <p>Precipitation: ${weather.precipitation.toFixed(1)} mm</p>
-        <p>Pressure: ${weather.pressure.toFixed(1)} hPa</p>
+        <p>Temperature: ${Math.round(weather.temperature)}°C</p>
+        <p>Humidity: ${Math.round(weather.humidity)}%</p>
+        <p>Wind Speed: ${Math.round(weather.wind_speed)} m/s</p>
+        <p>Wind Direction: ${Math.round(weather.wind_direction)}°</p>
+        <p>Precipitation: ${Math.round(weather.precipitation)} mm</p>
+        <p>Pressure: ${Math.round(weather.pressure)} hPa</p>
       </div>
     `;
     // ... existing code ...

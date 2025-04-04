@@ -89,7 +89,7 @@ Dashboard{% endblock %} {% block extra_css %}
     <div class="col-md-6 col-lg-4">
       <div
         class="card h-100 hover-lift animate-slide-in"
-        style="animation-delay: {% widthratio forloop.counter 10 1 %}s"
+        style="--delay: {% widthratio forloop.counter 25 1 %}s"
       >
         <div class="card-body">
           <h5 class="card-title">{{ prediction.region.name }}</h5>
@@ -98,7 +98,8 @@ Dashboard{% endblock %} {% block extra_css %}
           >
             <div class="d-flex justify-content-between align-items-center mb-3">
               <span class="badge bg-{{ prediction.risk_color }} animate-pulse"
-                >{{ prediction.risk_level_display }} Risk</span
+                >{% if prediction.risk_level == 'low' %}Low Risk{% else %}{{
+                prediction.risk_level_display }} Risk{% endif %}</span
               >
             </div>
           </div>
@@ -163,7 +164,7 @@ Dashboard{% endblock %} {% block extra_css %}
           <div class="animate-fade-in">
               <h6>${ '{{ prediction.region.name }}' }</h6>
               <span class="badge bg-{{ prediction.risk_color }}">
-                  ${ '{{ prediction.risk_level_display }}' } Risk
+                  ${ '{{ prediction.risk_level }}' === 'low' ? 'Low Risk' : '{{ prediction.risk_level_display }} Risk' }
               </span>
               <p class="mt-2 mb-0"><small>${ '{{ prediction.explanation }}' }</small></p>
           </div>

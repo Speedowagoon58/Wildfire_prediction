@@ -461,10 +461,10 @@ def generate_prediction_explanation(prediction):
             features = json.loads(features)
 
         current_weather = features.get("current_weather", {})
-        temperature = current_weather.get("temperature", 0)
-        humidity = current_weather.get("humidity", 0)
-        wind_speed = current_weather.get("wind_speed", 0)
-        precipitation = current_weather.get("precipitation", 0)
+        temperature = round(current_weather.get("temperature", 0))
+        humidity = round(current_weather.get("humidity", 0))
+        wind_speed = round(current_weather.get("wind_speed", 0))
+        precipitation = round(current_weather.get("precipitation", 0))
 
         # Get region-specific information
         region = prediction.region
@@ -474,109 +474,90 @@ def generate_prediction_explanation(prediction):
         vegetation_density = getattr(region, "vegetation_density", "moderate")
         climate_zone = getattr(region, "climate_zone", "temperate")
 
-        # Create region-specific context
-        region_context = f"In {region_name}, a {region_type} area with {soil_type.lower()} soil and {vegetation_density} vegetation density, "
+        # Get current season for context
+        season = get_current_season()
+
+        # Create region-specific context with more detail
+        region_context = f"In {region_name}, a {region_type} characterized by {soil_type.lower()} soil and {vegetation_density} vegetation density in a {climate_zone} climate zone, "
 
         # Build detailed weather conditions explanation
         weather_conditions = []
 
-        # Temperature explanation with actual value and seasonal context
-        season = get_current_season()
+        # Temperature explanation with seasonal context
         if temperature > 30:
             weather_conditions.append(
-                f"temperatures are significantly high at {temperature}°C, which is {'typical' if season in ['summer'] else 'unusual'} for this {season}"
+                f"temperatures are significantly high at {temperature}°C, which is {'typical' if season in ['summer'] else 'unusually high'} for this {season} season and increases the risk of vegetation drying out"
             )
         elif temperature > 25:
             weather_conditions.append(
-                f"temperatures are elevated at {temperature}°C, which is {'normal' if season in ['summer', 'spring'] else 'above average'} for this {season}"
+                f"temperatures are elevated at {temperature}°C, {'as expected' if season in ['summer', 'spring'] else 'which is above average'} for this {season} season"
             )
         elif temperature > 20:
             weather_conditions.append(
-                f"temperatures are moderate at {temperature}°C, which is {'typical' if season in ['spring', 'summer', 'autumn'] else 'unusual'} for this {season}"
+                f"temperatures are moderate at {temperature}°C, providing {'favorable' if season in ['spring', 'autumn'] else 'relatively safe'} conditions"
             )
         else:
             weather_conditions.append(
-                f"temperatures are cool at {temperature}°C, which is {'normal' if season in ['winter', 'autumn'] else 'below average'} for this {season}"
+                f"temperatures are cool at {temperature}°C, {'typical' if season in ['winter', 'autumn'] else 'unusually low'} for this {season} season"
             )
 
-        # Humidity explanation with actual value and soil type context
+        # Humidity explanation with soil context
         if humidity < 30:
             weather_conditions.append(
-                f"humidity is critically low at {humidity}%, which is particularly concerning given the {soil_type.lower()} soil's {'poor' if soil_type == 'Sandy' else 'moderate'} moisture retention"
+                f"humidity is critically low at {humidity}%, which is particularly concerning for the {soil_type.lower()} soil's moisture retention capacity and could lead to rapid drying of vegetation"
             )
         elif humidity < 40:
             weather_conditions.append(
-                f"humidity is low at {humidity}%, contributing to dry conditions that are {'especially risky' if soil_type == 'Sandy' else 'moderately concerning'} for this soil type"
+                f"humidity is low at {humidity}%, creating dry conditions that are {'especially risky' if soil_type == 'Sandy' else 'moderately concerning'} given the soil composition"
             )
         elif humidity < 60:
             weather_conditions.append(
-                f"humidity is moderate at {humidity}%, providing {'some' if soil_type == 'Clay' else 'adequate'} moisture retention for the {soil_type.lower()} soil"
+                f"humidity is moderate at {humidity}%, helping maintain {'some' if soil_type == 'Clay' else 'adequate'} moisture in the soil and vegetation"
             )
         else:
             weather_conditions.append(
-                f"humidity is high at {humidity}%, helping maintain moisture in the {soil_type.lower()} soil and vegetation"
+                f"humidity is high at {humidity}%, which helps preserve moisture in the {soil_type.lower()} soil and reduces fire risk"
             )
 
-        # Wind explanation with actual value and vegetation context
+        # Wind explanation with vegetation context
         if wind_speed > 30:
             weather_conditions.append(
-                f"strong winds at {wind_speed} km/h, particularly significant in areas with {vegetation_density} vegetation"
+                f"strong winds at {wind_speed} km/h pose a significant risk, particularly in areas with {vegetation_density} vegetation where fire could spread rapidly"
             )
         elif wind_speed > 20:
             weather_conditions.append(
-                f"moderate to strong winds at {wind_speed} km/h, with {'increased' if vegetation_density == 'dense' else 'moderate'} impact due to {vegetation_density} vegetation"
+                f"moderate to strong winds at {wind_speed} km/h, combined with the {vegetation_density} vegetation, could facilitate fire spread if ignition occurs"
             )
         elif wind_speed > 10:
             weather_conditions.append(
-                f"moderate winds at {wind_speed} km/h in the {vegetation_density} vegetation"
+                f"moderate winds at {wind_speed} km/h are present, with {'increased' if vegetation_density == 'dense' else 'moderate'} potential for fire spread through the {vegetation_density} vegetation"
             )
         else:
             weather_conditions.append(
-                f"calm winds at {wind_speed} km/h, though {'dense' if vegetation_density == 'dense' else 'moderate'} vegetation present"
+                f"calm winds at {wind_speed} km/h provide favorable conditions, though the {vegetation_density} vegetation could still support fire spread if other risk factors are present"
             )
 
-        # Precipitation explanation with actual value and climate zone context
-        if precipitation < 5:
+        # Precipitation explanation with climate context
+        if precipitation == 0:
             weather_conditions.append(
-                f"minimal precipitation of {precipitation}mm, which is {'particularly concerning' if climate_zone in ['mediterranean', 'semi_arid'] else 'concerning'} for this {climate_zone} climate zone"
+                f"there is no precipitation, which is {'particularly concerning' if climate_zone in ['mediterranean', 'semi_arid'] else 'concerning'} for this {climate_zone} climate zone and increases fire risk"
+            )
+        elif precipitation < 5:
+            weather_conditions.append(
+                f"minimal precipitation of {precipitation}mm provides limited moisture, {'typical' if climate_zone == 'semi_arid' else 'below average'} for this {climate_zone} region"
             )
         elif precipitation < 10:
             weather_conditions.append(
-                f"low precipitation of {precipitation}mm, which is {'typical' if climate_zone == 'semi_arid' else 'below average'} for this {climate_zone} region"
-            )
-        elif precipitation < 20:
-            weather_conditions.append(
-                f"moderate precipitation of {precipitation}mm, which is {'adequate' if climate_zone == 'temperate' else 'below normal'} for this {climate_zone} climate"
+                f"low precipitation of {precipitation}mm helps reduce fire risk, though {'may be insufficient' if climate_zone in ['mediterranean', 'semi_arid'] else 'provides moderate protection'} in this climate"
             )
         else:
             weather_conditions.append(
-                f"significant precipitation of {precipitation}mm, which is {'beneficial' if climate_zone in ['mediterranean', 'semi_arid'] else 'normal'} for this {climate_zone} region"
+                f"significant precipitation of {precipitation}mm provides good protection against fire risk, {'especially beneficial' if climate_zone in ['mediterranean', 'semi_arid'] else 'maintaining normal moisture levels'} for this {climate_zone} region"
             )
-
-        # Get historical patterns
-        historical_patterns = features.get("historical_patterns", {})
-        if historical_patterns:
-            trend = historical_patterns.get("trend", 0)
-            if trend > 0.7:
-                historical_context = (
-                    " Historical data shows a strong increasing trend in conditions."
-                )
-            elif trend > 0.4:
-                historical_context = " Historical patterns indicate a moderate increase in conditions over time."
-            elif trend > 0.2:
-                historical_context = (
-                    " Historical data suggests a slight increase in patterns."
-                )
-            else:
-                historical_context = (
-                    " Historical data shows generally stable or decreasing patterns."
-                )
-        else:
-            historical_context = ""
 
         # Combine all explanations
         weather_text = ". ".join(weather_conditions)
-        explanation = f"{region_context}{weather_text}.{historical_context}"
+        explanation = f"{region_context}{weather_text}."
 
         return explanation
 
@@ -712,34 +693,52 @@ class PredictionViewSet(viewsets.ModelViewSet):
     def dashboard(self, request):
         """Display wildfire predictions dashboard."""
         try:
-            # Get all regions
+            # Generate test weather data if needed
+            generate_test_weather_data()
+
             regions = Region.objects.all()
+            logger.info(f"Found {regions.count()} regions")
+
             predictions = []
 
             for region in regions:
                 try:
-                    # Get current weather data
+                    logger.info(f"Processing region: {region.name}")
+
+                    # Get current weather data from OpenWeatherMap API
                     current_weather = fetch_current_weather(region)
+
                     if not current_weather:
                         logger.warning(
-                            f"No current weather data for region {region.name}"
+                            f"No weather data found for region {region.name}"
+                        )
+                        predictions.append(
+                            {
+                                "region": region,
+                                "risk_level": None,
+                                "risk_color": "secondary",
+                                "major_forests": [],
+                            }
                         )
                         continue
 
-                    # Analyze historical patterns
+                    # Round the weather values to whole numbers
+                    current_weather.temperature = round(current_weather.temperature)
+                    current_weather.humidity = round(current_weather.humidity)
+                    current_weather.wind_speed = round(current_weather.wind_speed)
+                    current_weather.precipitation = round(current_weather.precipitation)
+                    current_weather.pressure = round(current_weather.pressure)
+
+                    # Get historical patterns
                     historical_patterns = analyze_historical_patterns(region)
-                    if not historical_patterns:
-                        logger.warning(
-                            f"No historical patterns available for region {region.name}"
-                        )
-                        continue
 
                     # Calculate wildfire risk
                     risk_prediction = calculate_wildfire_risk(
                         current_weather, historical_patterns
                     )
+
                     if not risk_prediction:
-                        logger.warning(
+                        logger.error(
                             f"Could not calculate risk for region {region.name}"
                         )
                         continue
@@ -748,14 +747,13 @@ class PredictionViewSet(viewsets.ModelViewSet):
                     prediction = WildfirePrediction.objects.create(
                         region=region,
                         prediction_date=timezone.now(),
-                        risk_level=risk_prediction["risk_level"].lower(),
-                        confidence=risk_prediction["confidence"],
+                        risk_level=risk_prediction["risk_level"],
+                        confidence=round(
+                            risk_prediction["confidence"]
+                        ),  # Round confidence to whole number
                         features_used=risk_prediction["features_used"],
                         model_version="1.0",
                     )
-
-                    # Generate explanation
-                    explanation = generate_prediction_explanation(prediction)
 
                     # Get major forests for the region
                     major_forests = region.forests.all().order_by("-area")[
@@ -766,10 +764,10 @@ class PredictionViewSet(viewsets.ModelViewSet):
                         {
                             "region": region,
                             "prediction": prediction,
-                            "risk_level": prediction.risk_level,  # Raw value for map
-                            "risk_level_display": prediction.get_risk_level_display(),  # Display value for cards
+                            "risk_level": prediction.risk_level,
+                            "risk_level_display": prediction.get_risk_level_display(),
                             "risk_color": get_risk_color(prediction.risk_level),
-                            "confidence": f"{prediction.confidence:.1%}",
+                            "confidence": prediction.confidence,
                             "timestamp": prediction.prediction_date.strftime(
                                 "%Y-%m-%d %H:%M"
                             ),
@@ -779,13 +777,15 @@ class PredictionViewSet(viewsets.ModelViewSet):
                     )
 
                 except Exception as e:
-                    logger.error(
-                        f"Error fetching prediction for region {region.id}: {str(e)}"
-                    )
+                    logger.error(f"Error processing region {region.name}: {str(e)}")
                     continue
 
             return render(
-                request, "predictions/dashboard.html", {"predictions": predictions}
+                request,
+                "predictions/dashboard.html",
+                {
+                    "regions": predictions,
+                },
             )
 
         except Exception as e:
@@ -831,36 +831,49 @@ def generate_test_weather_data():
     now = timezone.now()
 
     for region in regions:
-        # Check if region has any weather data
-        if not WeatherData.objects.filter(region=region).exists():
+        # Check if region has recent weather data (within the last hour)
+        recent_data = WeatherData.objects.filter(
+            region=region, timestamp__gte=now - timedelta(hours=1)
+        ).exists()
+
+        if not recent_data:
             logger.info(f"Generating test weather data for region: {region.name}")
 
-            # Generate test data for the past 7 days
-            for i in range(7):
+            # Create current weather data with realistic values
+            WeatherData.objects.create(
+                region=region,
+                timestamp=now,
+                temperature=random.uniform(25, 35),  # Warm temperature (25-35°C)
+                humidity=random.uniform(20, 40),  # Low-moderate humidity (20-40%)
+                wind_speed=random.uniform(5, 15),  # Moderate wind (5-15 m/s)
+                wind_direction=random.uniform(0, 360),  # Random direction
+                precipitation=random.uniform(0, 2),  # Low precipitation (0-2 mm)
+                pressure=random.uniform(1000, 1015),  # Normal pressure
+            )
+
+            # Generate historical data for the past 7 days
+            for i in range(1, 8):
                 timestamp = now - timedelta(days=i)
 
-                # Create weather data with realistic values
+                # Add some variation but maintain a pattern
                 WeatherData.objects.create(
                     region=region,
                     timestamp=timestamp,
-                    temperature=random.uniform(15, 35),  # 15-35°C
-                    humidity=random.uniform(30, 80),  # 30-80%
-                    wind_speed=random.uniform(0, 15),  # 0-15 m/s
-                    wind_direction=random.uniform(0, 360),  # 0-360 degrees
-                    precipitation=random.uniform(0, 10),  # 0-10 mm
-                    pressure=random.uniform(980, 1020),  # 980-1020 hPa
+                    temperature=random.uniform(20, 30),  # Slightly cooler in past
+                    humidity=random.uniform(30, 50),  # More humid in past
+                    wind_speed=random.uniform(3, 12),  # Variable wind
+                    wind_direction=random.uniform(0, 360),
+                    precipitation=random.uniform(0, 5),  # More precipitation in past
+                    pressure=random.uniform(1000, 1015),
                 )
 
             logger.info(f"Generated test weather data for region: {region.name}")
         else:
-            logger.info(f"Region {region.name} already has weather data")
+            logger.info(f"Region {region.name} already has recent weather data")
 
 
 def dashboard(request):
     """Render the predictions dashboard with current predictions for all regions."""
-    # Generate test weather data if needed
-    generate_test_weather_data()
-
     regions = Region.objects.all()
     logger.info(f"Found {regions.count()} regions")
 
@@ -870,91 +883,51 @@ def dashboard(request):
         try:
             logger.info(f"Processing region: {region.name}")
 
-            # Get current weather data
-            current_weather = (
-                WeatherData.objects.filter(region=region).order_by("-timestamp").first()
-            )
+            # Get current weather data from OpenWeatherMap API
+            current_weather = fetch_current_weather(region)
 
-            if current_weather:
-                logger.info(
-                    f"Found weather data for {region.name}: temp={current_weather.temperature}, humidity={current_weather.humidity}"
-                )
-            else:
+            if not current_weather:
                 logger.warning(f"No weather data found for region {region.name}")
-
-            # If no recent weather data (within last hour) or no weather data at all
-            if (
-                not current_weather
-                or (timezone.now() - current_weather.timestamp).total_seconds() > 3600
-            ):
-                logger.warning(f"No recent weather data for region {region.name}")
                 predictions.append(
                     {
                         "region": region,
-                        "prediction": None,
-                        "risk_level": "No Data",
+                        "risk_level": None,
                         "risk_color": "secondary",
-                        "confidence": "N/A",
-                        "timestamp": "No recent weather data",
-                        "explanation": "No recent weather data available for prediction.",
+                        "major_forests": [],
                     }
                 )
                 continue
+
+            # Round the weather values to whole numbers
+            current_weather.temperature = round(current_weather.temperature)
+            current_weather.humidity = round(current_weather.humidity)
+            current_weather.wind_speed = round(current_weather.wind_speed)
+            current_weather.precipitation = round(current_weather.precipitation)
+            current_weather.pressure = round(current_weather.pressure)
 
             # Get historical patterns
             historical_patterns = analyze_historical_patterns(region)
-            if not historical_patterns:
-                logger.warning(f"No historical patterns for region {region.name}")
-                predictions.append(
-                    {
-                        "region": region,
-                        "prediction": None,
-                        "risk_level": "No Data",
-                        "risk_color": "secondary",
-                        "confidence": "N/A",
-                        "timestamp": "Insufficient historical data",
-                        "explanation": "Not enough historical weather data available for prediction.",
-                    }
-                )
-                continue
 
-            logger.info(f"Found historical patterns for region {region.name}")
-
-            # Calculate risk
+            # Calculate wildfire risk
             risk_prediction = calculate_wildfire_risk(
                 current_weather, historical_patterns
             )
 
             if not risk_prediction:
-                logger.error(f"Failed to calculate risk for region {region.name}")
-                predictions.append(
-                    {
-                        "region": region,
-                        "prediction": None,
-                        "risk_level": "Error",
-                        "risk_color": "secondary",
-                        "confidence": "N/A",
-                        "timestamp": "Error calculating risk",
-                        "explanation": "An error occurred while calculating the risk prediction.",
-                    }
-                )
+                logger.error(f"Could not calculate risk for region {region.name}")
                 continue
-
-            logger.info(
-                f"Calculated risk for region {region.name}: {risk_prediction['risk_level']}"
-            )
 
             # Create prediction record
             prediction = WildfirePrediction.objects.create(
                 region=region,
                 prediction_date=timezone.now(),
-                risk_level=risk_prediction["risk_level"].lower(),
-                confidence=risk_prediction["confidence"],
+                risk_level=risk_prediction["risk_level"],
+                confidence=round(
+                    risk_prediction["confidence"]
+                ),  # Round confidence to whole number
                 features_used=risk_prediction["features_used"],
                 model_version="1.0",
             )
-
-            logger.info(f"Created prediction record for region {region.name}")
 
             # Get major forests for the region
             major_forests = region.forests.all().order_by("-area")[
@@ -965,43 +938,24 @@ def dashboard(request):
                 {
                     "region": region,
                     "prediction": prediction,
-                    "risk_level": prediction.risk_level,  # Raw value for map
-                    "risk_level_display": prediction.get_risk_level_display(),  # Display value for cards
+                    "risk_level": prediction.risk_level,
+                    "risk_level_display": prediction.get_risk_level_display(),
                     "risk_color": get_risk_color(prediction.risk_level),
-                    "confidence": f"{prediction.confidence:.1%}",
+                    "confidence": prediction.confidence,
                     "timestamp": prediction.prediction_date.strftime("%Y-%m-%d %H:%M"),
                     "explanation": generate_prediction_explanation(prediction),
                     "major_forests": [forest.name for forest in major_forests],
                 }
             )
 
-            logger.info(f"Added prediction to list for region {region.name}")
-
         except Exception as e:
-            logger.error(f"Error fetching prediction for region {region.id}: {e}")
-            predictions.append(
-                {
-                    "region": region,
-                    "prediction": None,
-                    "risk_level": "Error",
-                    "risk_color": "secondary",
-                    "confidence": "N/A",
-                    "timestamp": "Error loading prediction",
-                    "explanation": f"An error occurred while generating the prediction: {str(e)}",
-                }
-            )
-
-    # For debugging - log the predictions
-    logger.info(f"Number of predictions: {len(predictions)}")
-    for pred in predictions:
-        logger.info(
-            f"Region: {pred['region'].name}, Risk Level: {pred.get('risk_level', 'N/A')}"
-        )
+            logger.error(f"Error processing region {region.name}: {str(e)}")
+            continue
 
     return render(
         request,
         "predictions/dashboard.html",
         {
-            "regions": predictions,  # Pass predictions as regions for the template
+            "regions": predictions,
         },
     )

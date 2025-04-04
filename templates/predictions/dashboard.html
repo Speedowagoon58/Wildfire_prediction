@@ -93,32 +93,44 @@ Dashboard{% endblock %} {% block extra_css %}
       >
         <div class="card-body">
           <h5 class="card-title">{{ prediction.region.name }}</h5>
-          <div
-            class="risk-indicator {% if prediction.risk_level == 'high' %}high{% endif %}"
-          >
-            <div class="d-flex justify-content-between align-items-center mb-3">
+          {% if prediction.major_forests %}
+          <p class="text-muted small mb-2">
+            {{ prediction.major_forests|join:", " }}
+          </p>
+          {% endif %} {% if prediction.risk_level %}
+          <div class="risk-indicator">
+            <div class="d-flex justify-content-between align-items-center">
               <span class="badge bg-{{ prediction.risk_color }} animate-pulse"
-                >{% if prediction.risk_level == 'low' %}Low Risk{% else %}{{
-                prediction.risk_level_display }} Risk{% endif %}</span
+                >{{ prediction.risk_level_display }}</span
               >
             </div>
           </div>
-          <p class="card-text">{{ prediction.explanation }}</p>
+          <p class="card-text mt-2">{{ prediction.explanation }}</p>
           <div class="mt-3">
             <small class="text-muted"
               >Last updated: {{ prediction.timestamp }}</small
             >
           </div>
+          {% else %}
+          <p class="card-text">
+            No recent weather data available for prediction.
+          </p>
+          <div class="mt-3">
+            <small class="text-muted"
+              >Last updated: No recent weather data</small
+            >
+          </div>
+          {% endif %}
         </div>
       </div>
     </div>
-    {% empty %}
+    {% endfor %} {% if not regions %}
     <div class="col-12">
       <div class="alert alert-info animate-fade-in" role="alert">
         No predictions available at the moment.
       </div>
     </div>
-    {% endfor %}
+    {% endif %}
   </div>
 </div>
 {% endblock %} {% block extra_js %}
@@ -143,7 +155,7 @@ Dashboard{% endblock %} {% block extra_css %}
           [{{ prediction.region.latitude }}, {{ prediction.region.longitude }}],
           {
               radius: 10,
-              fillColor: getRiskColor('{{ prediction.risk_level }}'),
+              fillColor: {% if prediction.risk_color == 'success' %}'#28a745'{% elif prediction.risk_color == 'warning' %}'#ffc107'{% else %}'#dc3545'{% endif %},
               color: '#fff',
               weight: 2,
               opacity: 1,
@@ -160,39 +172,16 @@ Dashboard{% endblock %} {% block extra_css %}
       });
 
       // Add popup with animation
-      marker.bindPopup(`
-          <div class="animate-fade-in">
-              <h6>${ '{{ prediction.region.name }}' }</h6>
-              <span class="badge bg-{{ prediction.risk_color }}">
-                  ${ '{{ prediction.risk_level }}' === 'low' ? 'Low Risk' : '{{ prediction.risk_level_display }} Risk' }
-              </span>
-              <p class="mt-2 mb-0"><small>${ '{{ prediction.explanation }}' }</small></p>
-          </div>
-      `);
+      var popupContent = '<div class="animate-fade-in">' +
+          '<h6>{{ prediction.region.name|escapejs }}</h6>' +
+          {% if prediction.risk_level %}
+              '<span class="badge bg-{{ prediction.risk_color }}">{{ prediction.risk_level_display|escapejs }}</span>' +
+              '<p class="mt-2 mb-0"><small>{{ prediction.explanation|escapejs }}</small></p>'
+          {% else %}
+              '<p class="mt-2 mb-0"><small>No recent weather data available for prediction.</small></p>'
+          {% endif %};
+      marker.bindPopup(popupContent);
       {% endfor %}
-
-      function getRiskColor(risk) {
-          return risk === 'high' ? '#dc3545' :
-                 risk === 'medium' ? '#ffc107' :
-                 '#28a745';
-      }
-
-      // Add skeleton loading animation
-      function showSkeletonLoading() {
-          document.querySelectorAll('.card').forEach(card => {
-              card.classList.add('skeleton');
-          });
-      }
-
-      function hideSkeletonLoading() {
-          document.querySelectorAll('.card').forEach(card => {
-              card.classList.remove('skeleton');
-          });
-      }
-
-      // Simulate loading state
-      showSkeletonLoading();
-      setTimeout(hideSkeletonLoading, 1000);
   });
 </script>
 {% endblock %}

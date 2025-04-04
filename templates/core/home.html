@@ -47,17 +47,14 @@ Prediction System{% endblock %} {% block extra_head %}
         {% if recent_events %}
         <div class="list-group">
           {% for event in recent_events %}
-          <a
-            href="{% url 'core:region_detail' event.region.pk %}"
-            class="list-group-item list-group-item-action"
-          >
+          <div class="list-group-item">
             <div class="d-flex w-100 justify-content-between">
               <h5 class="mb-1">{{ event.region.name }}</h5>
               <small>{{ event.start_date|date }}</small>
             </div>
             <p class="mb-1">Severity: {{ event.get_severity_display }}</p>
             <small>Area affected: {{ event.area_affected }} km²</small>
-          </a>
+          </div>
           {% endfor %}
         </div>
         {% else %}
@@ -76,12 +73,7 @@ Prediction System{% endblock %} {% block extra_head %}
         {% if regions %}
         <div class="list-group">
           {% for region in regions %}
-          <a
-            href="{% url 'core:region_detail' region.pk %}"
-            class="list-group-item list-group-item-action"
-          >
-            {{ region.name }}
-          </a>
+          <div class="list-group-item">{{ region.name }}</div>
           {% endfor %}
         </div>
         {% else %}

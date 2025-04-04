@@ -18,6 +18,7 @@
       href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
     />
     <link href="{% static 'css/style.css' %}" rel="stylesheet" />
+    <link href="{% static 'css/animations.css' %}" rel="stylesheet" />
 
     <!-- Font Awesome Icons -->
     <link
@@ -33,18 +34,18 @@
       <div class="loading-spinner"></div>
     </div>
 
-    <button class="theme-toggle" onclick="toggleTheme()">
+    <button class="theme-toggle btn-animate hover-glow" onclick="toggleTheme()">
       <i class="fas fa-sun"></i>
     </button>
 
     <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark animate-fade-in">
       <div class="container">
-        <a class="navbar-brand" href="{% url 'core:home' %}">
+        <a class="navbar-brand hover-lift" href="{% url 'core:home' %}">
           Wildfire Prediction
         </a>
         <button
-          class="navbar-toggler"
+          class="navbar-toggler btn-animate"
           type="button"
           data-bs-toggle="collapse"
           data-bs-target="#navbarNav"
@@ -54,13 +55,17 @@
         <div class="collapse navbar-collapse" id="navbarNav">
           <ul class="navbar-nav">
             <li class="nav-item">
+              <a class="nav-link" href="{% url 'core:home' %}" data-nav-link
+                >Home</a
+              >
+            </li>
+            <li class="nav-item">
               <a
                 class="nav-link"
                 href="{% url 'predictions:dashboard' %}"
                 data-nav-link
+                >Predictions</a
               >
-                Predictions
-              </a>
             </li>
           </ul>
         </div>
@@ -68,118 +73,49 @@
     </nav>
 
     <!-- Main Content -->
-    <main class="container mt-4">
+    <main class="container mt-4 page-transition">
       {% if messages %} {% for message in messages %}
-      <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+      <div class="alert alert-{{ message.tags }} animate-slide-in" role="alert">
+        {{ message }}
+      </div>
       {% endfor %} {% endif %} {% block content %}{% endblock %}
     </main>
 
     <!-- Footer -->
-    <footer class="footer mt-auto py-3 bg-light">
-      <div class="container text-center">
-        <span class="text-muted">© 2024 Wildfire Prediction System</span>
+    <footer class="footer mt-auto py-3 bg-dark">
+      <div class="container text-center text-light animate-fade-in">
+        <p>&copy; 2025 Wildfire Prediction System. All rights reserved.</p>
       </div>
     </footer>
 
-    <!-- Bootstrap JS -->
+    <!-- Bootstrap Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-
-    <!-- Custom JS -->
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script src="{% static 'js/main.js' %}"></script>
+    {% block extra_js %}{% endblock %}
 
     <script>
-      // Theme management
-      function setTheme(theme) {
-        document.documentElement.setAttribute("data-theme", theme);
-        localStorage.setItem("theme", theme);
-        updateThemeToggle(theme);
+      // Add loading animation
+      document.addEventListener("DOMContentLoaded", function () {
+        document.querySelector(".loading-overlay").style.display = "none";
+      });
 
-        // Update map tiles if they exist
-        if (window.riskMap) {
-          window.riskMap.invalidateSize();
-          if (window.forestLayers) {
-            window.forestLayers.eachLayer(function (layer) {
-              if (layer.redraw) {
-                layer.redraw();
-              }
-            });
-          }
+      // Add animation to nav links
+      document.querySelectorAll("[data-nav-link]").forEach((link) => {
+        if (link.getAttribute("href") === window.location.pathname) {
+          link.classList.add("active");
         }
-      }
+      });
 
+      // Theme toggle animation
       function toggleTheme() {
-        const currentTheme = localStorage.getItem("theme") || "light";
-        const newTheme = currentTheme === "light" ? "dark" : "light";
-        setTheme(newTheme);
+        document.body.classList.toggle("dark-theme");
+        const icon = document.querySelector(".theme-toggle i");
+        icon.classList.toggle("fa-sun");
+        icon.classList.toggle("fa-moon");
+        icon.classList.add("animate-spin");
+        setTimeout(() => icon.classList.remove("animate-spin"), 500);
       }
-
-      function updateThemeToggle(theme) {
-        const toggle = document.querySelector(".theme-toggle i");
-        if (toggle) {
-          toggle.className = theme === "dark" ? "fas fa-moon" : "fas fa-sun";
-        }
-      }
-
-      // Loading state management
-      function showLoading() {
-        document.querySelector(".loading-overlay").classList.add("active");
-      }
-
-      function hideLoading() {
-        document.querySelector(".loading-overlay").classList.remove("active");
-      }
-
-      // Handle navigation loading states
-      document.addEventListener("DOMContentLoaded", function () {
-        const navLinks = document.querySelectorAll("[data-nav-link]");
-        navLinks.forEach((link) => {
-          link.addEventListener("click", function (e) {
-            showLoading();
-          });
-        });
-
-        // Hide loading on page load
-        window.addEventListener("load", hideLoading);
-
-        // Handle back/forward navigation
-        window.addEventListener("popstate", function () {
-          showLoading();
-        });
-
-        // Handle AJAX requests loading states
-        let originalXHR = window.XMLHttpRequest;
-        let activeRequests = 0;
-
-        function updateLoadingState() {
-          if (activeRequests > 0) {
-            showLoading();
-          } else {
-            hideLoading();
-          }
-        }
-
-        window.XMLHttpRequest = function () {
-          let xhr = new originalXHR();
-          xhr.addEventListener("loadstart", function () {
-            activeRequests++;
-            updateLoadingState();
-          });
-          xhr.addEventListener("loadend", function () {
-            activeRequests--;
-            updateLoadingState();
-          });
-          return xhr;
-        };
-      });
-
-      // Initialize theme
-      document.addEventListener("DOMContentLoaded", function () {
-        const savedTheme = localStorage.getItem("theme") || "light";
-        setTheme(savedTheme);
-      });
     </script>
-
-    {% block extra_js %}{% endblock %}
   </body>
 </html>

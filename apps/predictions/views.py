@@ -825,23 +825,69 @@ def generate_test_predictions():
             )
 
 
+def generate_test_weather_data():
+    """Generate test weather data for regions that don't have any."""
+    regions = Region.objects.all()
+    now = timezone.now()
+
+    for region in regions:
+        # Check if region has any weather data
+        if not WeatherData.objects.filter(region=region).exists():
+            logger.info(f"Generating test weather data for region: {region.name}")
+
+            # Generate test data for the past 7 days
+            for i in range(7):
+                timestamp = now - timedelta(days=i)
+
+                # Create weather data with realistic values
+                WeatherData.objects.create(
+                    region=region,
+                    timestamp=timestamp,
+                    temperature=random.uniform(15, 35),  # 15-35°C
+                    humidity=random.uniform(30, 80),  # 30-80%
+                    wind_speed=random.uniform(0, 15),  # 0-15 m/s
+                    wind_direction=random.uniform(0, 360),  # 0-360 degrees
+                    precipitation=random.uniform(0, 10),  # 0-10 mm
+                    pressure=random.uniform(980, 1020),  # 980-1020 hPa
+                )
+
+            logger.info(f"Generated test weather data for region: {region.name}")
+        else:
+            logger.info(f"Region {region.name} already has weather data")
+
+
 def dashboard(request):
     """Render the predictions dashboard with current predictions for all regions."""
+    # Generate test weather data if needed
+    generate_test_weather_data()
+
     regions = Region.objects.all()
+    logger.info(f"Found {regions.count()} regions")
+
     predictions = []
 
     for region in regions:
         try:
+            logger.info(f"Processing region: {region.name}")
+
             # Get current weather data
             current_weather = (
                 WeatherData.objects.filter(region=region).order_by("-timestamp").first()
             )
+
+            if current_weather:
+                logger.info(
+                    f"Found weather data for {region.name}: temp={current_weather.temperature}, humidity={current_weather.humidity}"
+                )
+            else:
+                logger.warning(f"No weather data found for region {region.name}")
 
             # If no recent weather data (within last hour) or no weather data at all
             if (
                 not current_weather
                 or (timezone.now() - current_weather.timestamp).total_seconds() > 3600
             ):
+                logger.warning(f"No recent weather data for region {region.name}")
                 predictions.append(
                     {
                         "region": region,
@@ -858,6 +904,7 @@ def dashboard(request):
             # Get historical patterns
             historical_patterns = analyze_historical_patterns(region)
             if not historical_patterns:
+                logger.warning(f"No historical patterns for region {region.name}")
                 predictions.append(
                     {
                         "region": region,
@@ -871,12 +918,15 @@ def dashboard(request):
                 )
                 continue
 
+            logger.info(f"Found historical patterns for region {region.name}")
+
             # Calculate risk
             risk_prediction = calculate_wildfire_risk(
                 current_weather, historical_patterns
             )
 
             if not risk_prediction:
+                logger.error(f"Failed to calculate risk for region {region.name}")
                 predictions.append(
                     {
                         "region": region,
@@ -890,6 +940,10 @@ def dashboard(request):
                 )
                 continue
 
+            logger.info(
+                f"Calculated risk for region {region.name}: {risk_prediction['risk_level']}"
+            )
+
             # Create prediction record
             prediction = WildfirePrediction.objects.create(
                 region=region,
@@ -899,6 +953,8 @@ def dashboard(request):
                 features_used=risk_prediction["features_used"],
                 model_version="1.0",
             )
+
+            logger.info(f"Created prediction record for region {region.name}")
 
             # Get major forests for the region
             major_forests = region.forests.all().order_by("-area")[
@@ -919,6 +975,8 @@ def dashboard(request):
                 }
             )
 
+            logger.info(f"Added prediction to list for region {region.name}")
+
         except Exception as e:
             logger.error(f"Error fetching prediction for region {region.id}: {e}")
             predictions.append(
@@ -933,8 +991,17 @@ def dashboard(request):
                 }
             )
 
+    # For debugging - log the predictions
+    logger.info(f"Number of predictions: {len(predictions)}")
+    for pred in predictions:
+        logger.info(
+            f"Region: {pred['region'].name}, Risk Level: {pred.get('risk_level', 'N/A')}"
+        )
+
     return render(
         request,
         "predictions/dashboard.html",
-        {"predictions": predictions, "regions": regions},
+        {
+            "regions": predictions,  # Pass predictions as regions for the template
+        },
     )

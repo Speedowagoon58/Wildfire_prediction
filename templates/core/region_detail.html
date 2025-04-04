@@ -1,94 +1,111 @@
-{% extends 'base.html' %} {% load static %} {% block title %}{{ region.name }} -
-Wildfire Prediction System{% endblock %} {% block content %}
-<div class="row">
-  <div class="col-md-8">
-    <div class="card mb-4">
-      <div class="card-header">
-        <h2 class="card-title mb-0">{{ region.name }}</h2>
-      </div>
-      <div class="card-body">
-        <div class="row">
-          <div class="col-md-6">
-            <h4>Location Details</h4>
-            <p><strong>Latitude:</strong> {{ region.latitude }}</p>
-            <p><strong>Longitude:</strong> {{ region.longitude }}</p>
-            <p>
-              <strong>Elevation:</strong> {% if region.elevation %}{{
-              region.elevation }} m{% else %}N/A{% endif %}
-            </p>
-          </div>
-          <div class="col-md-6">
-            <h4>Statistics</h4>
-            <p><strong>Total Events:</strong> {{ events|length }}</p>
-            <p>
-              <strong>Last Updated:</strong> {{ region.updated_at|date:"F j, Y"
-              }}
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-header">
-        <h3 class="card-title mb-0">Wildfire Events</h3>
-      </div>
-      <div class="card-body">
-        {% if events %}
-        <div class="table-responsive">
-          <table class="table table-hover">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Severity</th>
-                <th>Area Affected</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for event in events %}
-              <tr>
-                <td>{{ event.start_date|date:"F j, Y" }}</td>
-                <td>
-                  <span
-                    class="badge bg-{% if event.severity == 1 %}success{% elif event.severity == 2 %}warning{% elif event.severity == 3 %}danger{% else %}dark{% endif %}"
-                  >
-                    {{ event.get_severity_display }}
-                  </span>
-                </td>
-                <td>{{ event.area_affected }} km²</td>
-                <td>
-                  {% if event.end_date %} Ended {{ event.end_date|date:"F j, Y"
-                  }} {% else %} Active {% endif %}
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        {% else %}
-        <p>No wildfire events recorded for this region.</p>
-        {% endif %}
-      </div>
-    </div>
+{% extends "base.html" %} {% load static %} {% block title %}{{ region.name }} -
+Details{% endblock %} {% block content %}
+<div class="region-detail animate-fade-in">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>{{ region.name }}</h1>
+    <a
+      href="{% url 'core:regions' %}"
+      class="btn btn-outline-primary btn-animate"
+    >
+      <i class="fas fa-arrow-left me-2"></i>Back to Regions
+    </a>
   </div>
 
-  <div class="col-md-4">
-    <div class="card mb-4">
-      <div class="card-header">
-        <h3 class="card-title mb-0">Current Weather</h3>
-      </div>
-      <div class="card-body">
-        <div id="weather-data">Loading weather data...</div>
+  <div class="row g-4">
+    <!-- Region Information -->
+    <div class="col-md-6">
+      <div class="card hover-lift">
+        <div class="card-body">
+          <h5 class="card-title">Region Information</h5>
+          <div class="info-grid animate-slide-in">
+            <div class="info-item">
+              <strong>Location:</strong>
+              <span>{{ region.latitude }}°N, {{ region.longitude }}°E</span>
+            </div>
+            <div class="info-item">
+              <strong>Area:</strong>
+              <span>{{ region.area }} km²</span>
+            </div>
+            <div class="info-item">
+              <strong>Population:</strong>
+              <span>{{ region.population }}</span>
+            </div>
+            <div class="info-item">
+              <strong>Climate Zone:</strong>
+              <span>{{ region.get_climate_zone_display }}</span>
+            </div>
+            <div class="info-item">
+              <strong>Soil Type:</strong>
+              <span>{{ region.soil_type.name }}</span>
+            </div>
+            <div class="info-item">
+              <strong>Vegetation Density:</strong>
+              <span>{{ region.vegetation_density|floatformat:2 }}</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-header">
-        <h3 class="card-title mb-0">Risk Assessment</h3>
+    <!-- Current Weather -->
+    <div class="col-md-6">
+      <div class="card hover-lift">
+        <div class="card-body">
+          <h5 class="card-title">Current Weather</h5>
+          <div id="weather-data" class="weather-grid animate-slide-in">
+            <div class="skeleton-loader">
+              <div class="skeleton"></div>
+              <div class="skeleton"></div>
+              <div class="skeleton"></div>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="card-body">
-        <div id="risk-assessment">Loading risk assessment...</div>
+    </div>
+
+    <!-- Historical Events -->
+    <div class="col-12">
+      <div class="card hover-lift">
+        <div class="card-body">
+          <h5 class="card-title">Historical Wildfire Events</h5>
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Severity</th>
+                  <th>Area Affected</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for event in events %}
+                <tr
+                  class="animate-slide-in"
+                  style="animation-delay: {{ forloop.counter|multiply:0.1 }}s"
+                >
+                  <td>{{ event.start_date|date:"M d, Y" }}</td>
+                  <td>
+                    <span
+                      class="badge {% if event.severity == 4 %}bg-danger{% elif event.severity == 3 %}bg-warning{% elif event.severity == 2 %}bg-info{% else %}bg-success{% endif %} animate-pulse"
+                    >
+                      {{ event.get_severity_display }}
+                    </span>
+                  </td>
+                  <td>{{ event.area_affected }} km²</td>
+                  <td>{{ event.description }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="4" class="text-center">
+                    No historical events recorded.
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -96,67 +113,54 @@ Wildfire Prediction System{% endblock %} {% block content %}
 {% endblock %} {% block extra_js %}
 <script>
   document.addEventListener("DOMContentLoaded", function () {
-    // Fetch weather data
-    fetch(`/api/weather/weather/${region.id}/fetch_current_weather/`)
-      .then((response) => response.json())
-      .then((data) => {
-        document.getElementById("weather-data").innerHTML = `
-                <p><strong>Temperature:</strong> ${Math.round(
-                  data.temperature
-                )}°C</p>
-                <p><strong>Humidity:</strong> ${Math.round(data.humidity)}%</p>
-                <p><strong>Wind Speed:</strong> ${Math.round(
-                  data.wind_speed
-                )} m/s</p>
-                <p><strong>Last Updated:</strong> ${new Date(
-                  data.timestamp
-                ).toLocaleString()}</p>
-            `;
-      })
-      .catch((error) => {
-        document.getElementById("weather-data").innerHTML =
-          "Error loading weather data";
-        console.error("Error:", error);
-      });
-
-    // Fetch risk assessment
-    fetch(`/predictions/api/results/predict-for-region/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ region_id: {{ region.id }} })
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        const riskLevel = data.risk_level === 'High Risk' ? 100 :
-                         data.risk_level === 'Medium Risk' ? 50 : 25;
-        const riskColor = data.risk_level === 'High Risk' ? 'danger' :
-                         data.risk_level === 'Medium Risk' ? 'warning' : 'success';
-
-        document.getElementById("risk-assessment").innerHTML = `
-                <div class="text-center">
-                    <h4 class="text-${riskColor}">${riskLevel}%</h4>
-                    <p>Current Risk Level</p>
-                    <div class="progress">
-                        <div class="progress-bar bg-${riskColor}"
-                             role="progressbar"
-                             style="width: ${riskLevel}%"
-                             aria-valuenow="${riskLevel}"
-                             aria-valuemin="0"
-                             aria-valuemax="100">
-                        </div>
+    function fetchWeatherData() {
+      fetch(`/api/weather/weather/${region.id}/fetch_current_weather/`)
+        .then((response) => response.json())
+        .then((data) => {
+          const weatherHtml = `
+                    <div class="weather-item animate-fade-in">
+                        <i class="fas fa-temperature-high"></i>
+                        <strong>Temperature:</strong>
+                        <span>${data.temperature}°C</span>
                     </div>
-                    <p class="mt-2"><small>Confidence: ${Math.round(data.confidence)}%</small></p>
-                    <p class="mt-2"><small>${data.explanation}</small></p>
-                </div>
-            `;
-      })
-      .catch((error) => {
-        document.getElementById("risk-assessment").innerHTML =
-          "Error loading risk assessment";
-        console.error("Error:", error);
-      });
+                    <div class="weather-item animate-fade-in" style="animation-delay: 0.1s">
+                        <i class="fas fa-tint"></i>
+                        <strong>Humidity:</strong>
+                        <span>${data.humidity}%</span>
+                    </div>
+                    <div class="weather-item animate-fade-in" style="animation-delay: 0.2s">
+                        <i class="fas fa-wind"></i>
+                        <strong>Wind Speed:</strong>
+                        <span>${data.wind_speed} m/s</span>
+                    </div>
+                    <div class="weather-item animate-fade-in" style="animation-delay: 0.3s">
+                        <i class="fas fa-compass"></i>
+                        <strong>Wind Direction:</strong>
+                        <span>${data.wind_direction}°</span>
+                    </div>
+                    <div class="weather-item animate-fade-in" style="animation-delay: 0.4s">
+                        <i class="fas fa-cloud-rain"></i>
+                        <strong>Precipitation:</strong>
+                        <span>${data.precipitation} mm</span>
+                    </div>
+                `;
+          document.querySelector("#weather-data").innerHTML = weatherHtml;
+        })
+        .catch((error) => {
+          console.error("Error fetching weather data:", error);
+          document.querySelector("#weather-data").innerHTML = `
+                    <div class="alert alert-danger animate-fade-in">
+                        Failed to load weather data. Please try again later.
+                    </div>
+                `;
+        });
+    }
+
+    // Initial fetch
+    fetchWeatherData();
+
+    // Refresh every 5 minutes
+    setInterval(fetchWeatherData, 300000);
   });
 </script>
 {% endblock %}

@@ -1,3 +1,6 @@
+import { animations, LoadingSpinner, ProgressBar } from "./animations.js";
+import themeManager from "./theme.js";
+
 // Utility function to format temperature
 function formatTemperature(temp) {
   return `${Math.round(temp)}°C`;
@@ -220,6 +223,152 @@ document.addEventListener("DOMContentLoaded", function () {
   const cards = document.querySelectorAll(".dashboard-card");
   cards.forEach((card, index) => {
     card.style.animation = `fadeIn 0.5s ease-in forwards ${index * 0.1}s`;
+  });
+
+  // Initialize loading spinner
+  const loadingSpinner = new LoadingSpinner(
+    document.getElementById("loading-container")
+  );
+
+  // Initialize progress bar
+  const progressBar = new ProgressBar(
+    document.getElementById("progress-container")
+  );
+
+  // Function to update weather data
+  async function updateWeatherData() {
+    try {
+      loadingSpinner.show();
+      progressBar.show();
+      progressBar.setProgress(0);
+
+      const response = await fetch("/api/weather-data");
+      const data = await response.json();
+
+      // Update weather grid
+      const weatherGrid = document.querySelector(".weather-grid");
+      if (weatherGrid) {
+        weatherGrid.innerHTML = "";
+        data.forEach((item, index) => {
+          const weatherItem = document.createElement("div");
+          weatherItem.className = "weather-item";
+          weatherItem.innerHTML = `
+            <i class="fas fa-${getWeatherIcon(item.condition)}"></i>
+            <h3>${item.location}</h3>
+            <p>${item.temperature}°C</p>
+            <p>${item.humidity}% Humidity</p>
+          `;
+
+          weatherGrid.appendChild(weatherItem);
+          animations.fadeIn(weatherItem, 300);
+          progressBar.setProgress(((index + 1) / data.length) * 100);
+        });
+      }
+    } catch (error) {
+      console.error("Error updating weather data:", error);
+      showError("Failed to update weather data");
+    } finally {
+      loadingSpinner.hide();
+      setTimeout(() => {
+        progressBar.hide();
+      }, 500);
+    }
+  }
+
+  // Function to update risk levels
+  async function updateRiskLevels() {
+    try {
+      const response = await fetch("/api/risk-levels");
+      const data = await response.json();
+
+      // Update risk level indicators
+      const riskContainer = document.querySelector(".risk-container");
+      if (riskContainer) {
+        riskContainer.innerHTML = "";
+        data.forEach((risk) => {
+          const riskElement = document.createElement("div");
+          riskElement.className = `risk-level ${risk.level.toLowerCase()}`;
+          riskElement.textContent = `${risk.area}: ${risk.level} Risk`;
+          riskContainer.appendChild(riskElement);
+          animations.slideDown(riskElement, 300);
+        });
+      }
+    } catch (error) {
+      console.error("Error updating risk levels:", error);
+      showError("Failed to update risk levels");
+    }
+  }
+
+  // Function to show error messages
+  function showError(message) {
+    const errorContainer = document.getElementById("error-container");
+    if (errorContainer) {
+      const errorElement = document.createElement("div");
+      errorElement.className = "alert alert-danger";
+      errorElement.textContent = message;
+      errorContainer.appendChild(errorElement);
+      animations.shake(errorElement);
+
+      setTimeout(() => {
+        animations.fadeOut(errorElement, 300);
+        setTimeout(() => {
+          errorElement.remove();
+        }, 300);
+      }, 3000);
+    }
+  }
+
+  // Function to get weather icon based on condition
+  function getWeatherIcon(condition) {
+    const icons = {
+      clear: "sun",
+      cloudy: "cloud",
+      rain: "cloud-rain",
+      storm: "bolt",
+      snow: "snowflake",
+    };
+    return icons[condition.toLowerCase()] || "question";
+  }
+
+  // Event listeners
+  document.addEventListener("DOMContentLoaded", () => {
+    // Initialize map
+    initMap();
+
+    // Initial data load
+    updateWeatherData();
+    updateRiskLevels();
+
+    // Set up refresh button
+    const refreshButton = document.getElementById("refresh-button");
+    if (refreshButton) {
+      refreshButton.addEventListener("click", () => {
+        animations.pulse(refreshButton);
+        updateWeatherData();
+        updateRiskLevels();
+      });
+    }
+
+    // Set up auto-refresh
+    setInterval(() => {
+      updateWeatherData();
+      updateRiskLevels();
+    }, 300000); // Refresh every 5 minutes
+
+    // Theme change listener
+    window.addEventListener("themechange", (e) => {
+      // Update map tiles if needed
+      const map = document.querySelector("#map");
+      if (map && map._leaflet_id) {
+        const isDark = e.detail.theme === "dark";
+        const tileLayer = document.querySelector(".leaflet-tile-pane");
+        if (tileLayer) {
+          tileLayer.style.filter = isDark
+            ? "invert(90%) hue-rotate(180deg)"
+            : "none";
+        }
+      }
+    });
   });
 });
 

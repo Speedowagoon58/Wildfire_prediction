@@ -291,52 +291,52 @@ def calculate_wildfire_risk(weather_data, historical_data=None):
 
         # Calculate temperature risk
         temp = float(getattr(weather_data, "temperature", 0))
-        if temp > 30:
+        if temp > 40:  # Extreme heat for Morocco
             risk_factors["temperature_risk"] = 1.0
-        elif temp > 25:
+        elif temp > 35:
             risk_factors["temperature_risk"] = 0.8
-        elif temp > 20:
+        elif temp > 30:
             risk_factors["temperature_risk"] = 0.6
-        elif temp > 15:
+        elif temp > 25:
             risk_factors["temperature_risk"] = 0.4
         else:
             risk_factors["temperature_risk"] = 0.2
 
-        # Calculate humidity risk
+        # Calculate humidity risk (adjusted for Mediterranean climate)
         humidity = float(getattr(weather_data, "humidity", 0))
-        if humidity < 30:
+        if humidity < 15:  # Extremely dry
             risk_factors["humidity_risk"] = 1.0
-        elif humidity < 40:
+        elif humidity < 25:
             risk_factors["humidity_risk"] = 0.8
-        elif humidity < 50:
+        elif humidity < 35:
             risk_factors["humidity_risk"] = 0.6
-        elif humidity < 60:
+        elif humidity < 45:
             risk_factors["humidity_risk"] = 0.4
         else:
             risk_factors["humidity_risk"] = 0.2
 
-        # Calculate wind risk
+        # Calculate wind risk (adjusted for mountainous regions)
         wind_speed = float(getattr(weather_data, "wind_speed", 0))
-        if wind_speed > 30:
+        if wind_speed > 50:  # Very strong winds
             risk_factors["wind_risk"] = 1.0
-        elif wind_speed > 20:
+        elif wind_speed > 40:
             risk_factors["wind_risk"] = 0.8
-        elif wind_speed > 15:
+        elif wind_speed > 30:
             risk_factors["wind_risk"] = 0.6
-        elif wind_speed > 10:
+        elif wind_speed > 20:
             risk_factors["wind_risk"] = 0.4
         else:
             risk_factors["wind_risk"] = 0.2
 
-        # Calculate precipitation risk
+        # Calculate precipitation risk (adjusted for arid climate)
         precipitation = float(getattr(weather_data, "precipitation", 0))
-        if precipitation < 5:
+        if precipitation == 0 and temp > 35:  # No rain during high temperatures
             risk_factors["precipitation_risk"] = 1.0
-        elif precipitation < 10:
+        elif precipitation == 0:  # No rain but moderate temperature
             risk_factors["precipitation_risk"] = 0.8
-        elif precipitation < 15:
+        elif precipitation < 2:
             risk_factors["precipitation_risk"] = 0.6
-        elif precipitation < 20:
+        elif precipitation < 5:
             risk_factors["precipitation_risk"] = 0.4
         else:
             risk_factors["precipitation_risk"] = 0.2
@@ -349,19 +349,24 @@ def calculate_wildfire_risk(weather_data, historical_data=None):
         else:
             risk_factors["historical_risk"] = 0.5  # Default moderate risk
 
-        # Calculate environmental risk (combining all factors)
+        # Calculate environmental risk with adjusted weights
         risk_factors["environmental_risk"] = float(
-            risk_factors["temperature_risk"] * 0.3
-            + risk_factors["humidity_risk"] * 0.2
-            + risk_factors["wind_risk"] * 0.2
-            + risk_factors["precipitation_risk"] * 0.2
-            + risk_factors["historical_risk"] * 0.1
+            risk_factors["temperature_risk"] * 0.3  # Temperature is critical
+            + risk_factors["humidity_risk"] * 0.25  # Humidity is very important
+            + risk_factors["wind_risk"] * 0.15  # Wind is less critical
+            + risk_factors["precipitation_risk"] * 0.2  # Precipitation is important
+            + risk_factors["historical_risk"]
+            * 0.1  # Historical patterns have some influence
         )
 
-        # Determine overall risk level
-        if risk_factors["environmental_risk"] >= 0.8:
+        # More conservative thresholds for risk levels
+        if (
+            risk_factors["environmental_risk"] >= 0.9
+        ):  # Requires multiple extreme conditions
             risk_level = WildfirePrediction.HIGH_RISK
-        elif risk_factors["environmental_risk"] >= 0.5:
+        elif (
+            risk_factors["environmental_risk"] >= 0.7
+        ):  # Requires several high-risk factors
             risk_level = WildfirePrediction.MEDIUM_RISK
         else:
             risk_level = WildfirePrediction.LOW_RISK
@@ -783,12 +788,17 @@ class PredictionViewSet(viewsets.ModelViewSet):
 
                     predictions.append(
                         {
-                            "region": region.name,
-                            "risk_level": prediction.risk_level,
-                            "explanation": explanation,
+                            "region": region,
+                            "prediction": prediction,
+                            "risk_level": prediction.risk_level,  # Raw value for map
+                            "risk_level_display": prediction.get_risk_level_display(),  # Display value for cards
+                            "risk_color": get_risk_color(prediction.risk_level),
+                            "confidence": f"{prediction.confidence:.1%}",
                             "timestamp": prediction.prediction_date.strftime(
-                                "%Y-%m-%d %H:%M:%S"
+                                "%Y-%m-%d %H:%M"
                             ),
+                            "explanation": generate_prediction_explanation(prediction),
+                            "major_forests": [forest.name for forest in major_forests],
                         }
                     )
 
@@ -923,7 +933,8 @@ def dashboard(request):
                 {
                     "region": region,
                     "prediction": prediction,
-                    "risk_level": prediction.get_risk_level_display(),
+                    "risk_level": prediction.risk_level,  # Raw value for map
+                    "risk_level_display": prediction.get_risk_level_display(),  # Display value for cards
                     "risk_color": get_risk_color(prediction.risk_level),
                     "confidence": f"{prediction.confidence:.1%}",
                     "timestamp": prediction.prediction_date.strftime("%Y-%m-%d %H:%M"),

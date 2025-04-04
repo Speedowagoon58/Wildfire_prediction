@@ -99,11 +99,17 @@ Dashboard{% endblock %} {% block extra_css %}
           <div class="mb-3">
             <h6 class="card-subtitle mb-2">
               Risk Level: {% if prediction.risk_level == 'high' %}
-              <span class="badge bg-danger">High Risk</span>
+              <span class="badge bg-danger"
+                >{{ prediction.risk_level_display }}</span
+              >
               {% elif prediction.risk_level == 'medium' %}
-              <span class="badge bg-warning">Medium Risk</span>
+              <span class="badge bg-warning"
+                >{{ prediction.risk_level_display }}</span
+              >
               {% else %}
-              <span class="badge bg-success">Low Risk</span>
+              <span class="badge bg-success"
+                >{{ prediction.risk_level_display }}</span
+              >
               {% endif %}
             </h6>
           </div>
@@ -151,9 +157,9 @@ Dashboard{% endblock %} {% block extra_css %}
 
       // Define risk level colors
       const riskColors = {
-          'High Risk': '#dc3545',
-          'Medium Risk': '#ffc107',
-          'Low Risk': '#198754'
+          'high': '#dc3545',
+          'medium': '#ffc107',
+          'low': '#198754'
       };
 
       // Create a feature group for all markers
@@ -179,7 +185,7 @@ Dashboard{% endblock %} {% block extra_css %}
               {% if prediction.major_forests %}
               <small class="text-muted">{{ prediction.major_forests|join:", " }}</small><br>
               {% endif %}
-              Risk Level: {{ prediction.risk_level }}<br>
+              Risk Level: {{ prediction.risk_level_display }}<br>
               {{ prediction.explanation }}
           `);
       {% endfor %}

@@ -31,10 +31,15 @@ Prediction System{% endblock %} {% block content %}
                 >
               </div>
               <div class="small text-muted">
-                <div>Temperature: {{ data.weather.temperature }}°C</div>
-                <div>Humidity: {{ data.weather.humidity }}%</div>
-                <div>Wind: {{ data.weather.wind_speed }} km/h</div>
-                <div>Precipitation: {{ data.weather.precipitation }} mm</div>
+                <div>
+                  Temperature: {{ data.weather.temperature|floatformat:1 }}°C
+                </div>
+                <div>Humidity: {{ data.weather.humidity|floatformat:1 }}%</div>
+                <div>Wind: {{ data.weather.wind_speed|floatformat:1 }} m/s</div>
+                <div>
+                  Precipitation: {{ data.weather.precipitation|floatformat:1 }}
+                  mm
+                </div>
               </div>
             </div>
             {% endfor %}
@@ -61,10 +66,10 @@ Prediction System{% endblock %} {% block content %}
   marker.bindPopup(`
     <strong>{{ data.region.name }}</strong><br>
     Risk Level: <span class="text-{{ data.risk_color }}">{{ data.risk_level }}</span><br>
-    Temperature: {{ data.weather.temperature }}°C<br>
-    Humidity: {{ data.weather.humidity }}%<br>
-    Wind: {{ data.weather.wind_speed }} km/h<br>
-    Precipitation: {{ data.weather.precipitation }} mm
+    Temperature: {{ data.weather.temperature|floatformat:1 }}°C<br>
+    Humidity: {{ data.weather.humidity|floatformat:1 }}%<br>
+    Wind: {{ data.weather.wind_speed|floatformat:1 }} m/s<br>
+    Precipitation: {{ data.weather.precipitation|floatformat:1 }} mm
   `);
 
   // Add a colored circle to indicate risk level
@@ -75,5 +80,20 @@ Prediction System{% endblock %} {% block content %}
     radius: 10000
   }).addTo(map);
   {% endfor %}
+
+  function addWeatherMarker(weather) {
+    const popupContent = `
+      <div class="weather-popup">
+        <h4>${weather.region.name}</h4>
+        <p>Temperature: ${weather.temperature.toFixed(1)}°C</p>
+        <p>Humidity: ${weather.humidity.toFixed(1)}%</p>
+        <p>Wind Speed: ${weather.wind_speed.toFixed(1)} m/s</p>
+        <p>Wind Direction: ${weather.wind_direction.toFixed(1)}°</p>
+        <p>Precipitation: ${weather.precipitation.toFixed(1)} mm</p>
+        <p>Pressure: ${weather.pressure.toFixed(1)} hPa</p>
+      </div>
+    `;
+    // ... existing code ...
+  }
 </script>
 {% endblock %} {% endblock %}

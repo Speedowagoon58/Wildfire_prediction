@@ -30,7 +30,7 @@ CSRF_TRUSTED_ORIGINS = [
 # Database configuration for Railway
 DATABASES = {
     "default": dj_database_url.config(
-        default="postgresql://postgres:gRSWSxQQKEsIOJsGfwraUqGrkYbbiGnB@postgres.railway.internal:5432/railway",
+        default="sqlite:///db.sqlite3",  # fallback to SQLite
         conn_max_age=600,
         conn_health_checks=True,
     )

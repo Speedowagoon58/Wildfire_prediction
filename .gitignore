@@ -4,7 +4,6 @@ __pycache__/
 *$py.class
 *.so
 .Python
-env/
 build/
 develop-eggs/
 dist/
@@ -16,54 +15,82 @@ lib64/
 parts/
 sdist/
 var/
+wheels/
 *.egg-info/
 .installed.cfg
 *.egg
 
+# Virtual Environment
+venv/
+venv_clean/
+ENV/
+env/
+.env
+
 # Django
 *.log
-local_settings.py
+*.pot
+*.pyc
 db.sqlite3
-db.sqlite3-journal
 media/
 staticfiles/
-
-# Environment variables
-.env
-.venv
-venv/
-ENV/
 
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
+.DS_Store
 
-# OS
+# Testing
+.coverage
+htmlcov/
+.tox/
+.nox/
+.pytest_cache/
+coverage.xml
+*.cover
+
+# Distribution
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# System Files
 .DS_Store
 Thumbs.db
-
-# Virtual Environment
-venv/
-env/
-ENV/
-
-# Coverage
-.coverage
-coverage.xml
-htmlcov/
-
-# Docker
-.docker/
-
-# Celery
-celerybeat-schedule
-celerybeat.pid
-
-# Logs
-logs/
-*.log
-
-# Local development
-*.local

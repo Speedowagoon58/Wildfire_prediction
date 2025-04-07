@@ -20,6 +20,7 @@ def fetch_current_weather(region):
     }
 
     try:
+        logger.info(f"Fetching weather data for {region.name} with params: {params}")
         response = requests.get(settings.OPENWEATHERMAP_API_URL, params=params)
         response.raise_for_status()
         data = response.json()
@@ -38,6 +39,7 @@ def fetch_current_weather(region):
 
         # Create the WeatherData object
         weather_data = WeatherData.objects.create(**weather_data_dict)
+        logger.info(f"Successfully created weather data for {region.name}")
 
         return weather_data
 

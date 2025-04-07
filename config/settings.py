@@ -1,8 +1,12 @@
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+import dj_database_url
 
 load_dotenv()
+
+# Get port from environment variable for Railway deployment
+PORT = int(os.getenv("PORT", "8000"))
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -21,14 +25,11 @@ CSRF_TRUSTED_ORIGINS = [
 
 # Database configuration for Railway
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("PGDATABASE", "wildfire_prediction"),
-        "USER": os.getenv("PGUSER", "postgres"),
-        "PASSWORD": os.getenv("PGPASSWORD", ""),
-        "HOST": os.getenv("PGHOST", "localhost"),
-        "PORT": os.getenv("PGPORT", "5432"),
-    }
+    "default": dj_database_url.config(
+        default="postgresql://postgres:gRSWSxQQKEsIOJsGfwraUqGrkYbbiGnB@postgres.railway.internal:5432/railway",
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 }
 
 # Static files configuration for Railway

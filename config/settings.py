@@ -13,11 +13,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-default-key")
 DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "t")
 
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1,.railway.app").split(
-    ","
-)
+ALLOWED_HOSTS = [
+    "web-production-67f0.up.railway.app",
+    "localhost",
+    "127.0.0.1",
+    ".railway.app",
+]
 
 CSRF_TRUSTED_ORIGINS = [
+    "https://web-production-67f0.up.railway.app",
     "https://*.railway.app",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
@@ -121,9 +125,11 @@ WEATHER_API_KEY = os.getenv("WEATHER_API_KEY", "")
 WEATHER_API_URL = "http://api.openweathermap.org/data/2.5/weather"
 
 # CORS settings
-CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000").split(
-    ","
-)
+CORS_ALLOWED_ORIGINS = [
+    "https://web-production-67f0.up.railway.app",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
 CORS_ALLOW_CREDENTIALS = True
 
 # REST Framework settings
